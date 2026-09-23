@@ -1,0 +1,3199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Azure Hospitality</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
+
+:root{
+  --ink:#12203A;
+  --ink-soft:#3A4A63;
+  --azure:#1F5FA8;
+  --azure-deep:#153F70;
+  --azure-tint:#E7EFF8;
+  --teal:#0E7C7B;
+  --teal-tint:#E4F2F1;
+  --stone:#EFEDE3;
+  --paper:#FAF9F5;
+  --line:#DEDBCE;
+  --line-soft:#E9E7DC;
+  --amber:#C97A2B;
+  --amber-tint:#F8ECDC;
+  --green:#2F8F5B;
+  --green-tint:#E7F3EC;
+  --red:#C0392B;
+  --red-tint:#FBEAE7;
+  --white:#FFFFFF;
+  --shadow: 0 1px 2px rgba(18,32,58,0.06);
+  --radius: 3px;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  font-family:'Inter',-apple-system,sans-serif;
+  background:var(--stone);
+  color:var(--ink);
+  font-size:14px;
+  line-height:1.5;
+}
+h1,h2,h3,.serif{font-family:'Fraunces',serif;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;font-size:13px;}
+a{color:var(--azure);}
+::selection{background:var(--azure-tint);}
+
+/* ===== Layout ===== */
+#app-shell{display:flex;min-height:100vh;}
+
+/* Sidebar */
+#sidebar{
+  width:222px;flex-shrink:0;background:var(--ink);color:#C9D3E3;
+  display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto;
+}
+.sb-brand{padding:22px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.08);}
+.sb-brand .mark{font-family:'Fraunces',serif;font-size:19px;font-weight:600;color:#fff;letter-spacing:0.2px;}
+.sb-brand .sub{font-size:10.5px;color:#8494AF;margin-top:3px;letter-spacing:.3px;}
+.sb-nav{padding:10px 10px;flex:1;}
+.sb-group-label{font-size:10px;color:#66799B;padding:14px 10px 5px;letter-spacing:.4px;}
+.sb-item{
+  display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--radius);
+  color:#B7C2D6;font-size:13px;cursor:pointer;margin-bottom:1px;border-left:2px solid transparent;
+}
+.sb-item:hover{background:rgba(255,255,255,0.05);color:#fff;}
+.sb-item.active{background:rgba(31,95,168,0.35);color:#fff;border-left:2px solid var(--azure);font-weight:500;}
+.sb-item .ic{width:15px;text-align:center;font-size:13px;opacity:.9;}
+.sb-foot{padding:14px 16px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#66799B;}
+
+/* Main */
+#main{flex:1;min-width:0;display:flex;flex-direction:column;}
+#topbar{
+  height:56px;flex-shrink:0;background:var(--paper);border-bottom:1px solid var(--line);
+  display:flex;align-items:center;padding:0 20px;gap:14px;position:sticky;top:0;z-index:20;
+}
+.prop-switcher{position:relative;}
+.prop-btn{
+  display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);
+  padding:7px 12px;border-radius:var(--radius);font-size:13px;font-weight:500;color:var(--ink);
+}
+.prop-btn .dot{width:7px;height:7px;border-radius:50%;background:var(--azure);}
+.prop-menu{
+  position:absolute;top:calc(100% + 4px);left:0;background:#fff;border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:0 6px 18px rgba(18,32,58,0.12);min-width:220px;z-index:50;display:none;
+}
+.prop-menu.open{display:block;}
+.prop-menu-item{padding:9px 14px;font-size:13px;display:flex;align-items:center;gap:8px;}
+.prop-menu-item:hover{background:var(--azure-tint);}
+.prop-menu-item .dot{width:7px;height:7px;border-radius:50%;}
+
+.search-box{flex:1;max-width:380px;}
+.search-box input{width:100%;padding:7px 12px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;}
+.search-box input:focus{outline:2px solid var(--azure-tint);border-color:var(--azure);}
+.top-right{margin-left:auto;display:flex;align-items:center;gap:14px;}
+.status-pill{font-size:11.5px;display:flex;align-items:center;gap:5px;color:var(--ink-soft);}
+.status-pill .dot{width:6px;height:6px;border-radius:50%;}
+.status-pill.online .dot{background:var(--green);}
+.status-pill.offline .dot{background:var(--red);}
+.bell{position:relative;font-size:16px;color:var(--ink-soft);cursor:pointer;padding:4px;}
+.bell .badge{
+  position:absolute;top:-2px;right:-2px;background:var(--red);color:#fff;font-size:9px;
+  border-radius:8px;padding:1px 4px;min-width:14px;text-align:center;line-height:1.3;
+}
+.user-chip{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink-soft);}
+.avatar{width:26px;height:26px;border-radius:50%;background:var(--azure);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;}
+
+#content{flex:1;padding:22px 26px 60px;max-width:1500px;width:100%;}
+
+/* Notif dropdown */
+.notif-panel{
+  position:absolute;top:52px;right:20px;width:320px;background:#fff;border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:0 10px 26px rgba(18,32,58,0.14);z-index:60;display:none;max-height:420px;overflow-y:auto;
+}
+.notif-panel.open{display:block;}
+.notif-item{padding:11px 14px;border-bottom:1px solid var(--line-soft);font-size:12.5px;}
+.notif-item .t{font-weight:600;color:var(--ink);margin-bottom:2px;}
+.notif-item .m{color:var(--ink-soft);}
+
+/* ===== Typography ===== */
+.page-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+.page-title{font-size:22px;font-weight:600;margin:0;}
+.page-sub{font-size:12.5px;color:var(--ink-soft);margin-top:3px;}
+.section-label{font-size:11px;letter-spacing:.3px;color:var(--ink-soft);margin:26px 0 10px;font-weight:600;}
+.section-label:first-child{margin-top:0;}
+
+/* ===== KPI cards ===== */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin-bottom:6px;}
+.kpi{background:#fff;padding:14px 16px;}
+.kpi .lbl{font-size:11px;color:var(--ink-soft);margin-bottom:6px;}
+.kpi .val{font-size:22px;font-weight:600;font-family:'Fraunces',serif;}
+.kpi .val.small{font-size:17px;}
+.kpi .delta{font-size:10.5px;margin-top:4px;}
+.kpi .delta.up{color:var(--green);}
+.kpi .delta.down{color:var(--red);}
+
+/* ===== Cards/Panels ===== */
+.panel{background:#fff;border:1px solid var(--line);border-radius:var(--radius);margin-bottom:20px;}
+.panel-head{padding:13px 16px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.panel-head h3{margin:0;font-size:14.5px;font-weight:600;font-family:'Inter';}
+.panel-body{padding:16px;}
+.panel-body.flush{padding:0;}
+
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;}
+@media(max-width:1000px){.grid-2,.grid-3{grid-template-columns:1fr;}}
+
+/* ===== Buttons ===== */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:var(--radius);font-size:12.5px;font-weight:500;border:1px solid var(--line);background:#fff;color:var(--ink);}
+.btn:hover{border-color:var(--azure);}
+.btn.primary{background:var(--azure);border-color:var(--azure);color:#fff;}
+.btn.primary:hover{background:var(--azure-deep);}
+.btn.ghost{border-color:transparent;background:transparent;}
+.btn.danger{color:var(--red);}
+.btn.sm{padding:4px 9px;font-size:11.5px;}
+.btn:disabled{opacity:.45;cursor:not-allowed;}
+
+/* ===== Tables ===== */
+table{width:100%;border-collapse:collapse;font-size:12.8px;}
+th{text-align:left;font-weight:600;color:var(--ink-soft);font-size:11px;letter-spacing:.2px;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--paper);white-space:nowrap;}
+td{padding:9px 12px;border-bottom:1px solid var(--line-soft);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--azure-tint);}
+.table-wrap{overflow-x:auto;}
+.empty-row td{text-align:center;color:var(--ink-soft);padding:30px;}
+
+/* ===== Badges ===== */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.8px;font-weight:600;white-space:nowrap;}
+.badge.blue{background:var(--azure-tint);color:var(--azure-deep);}
+.badge.teal{background:var(--teal-tint);color:var(--teal);}
+.badge.green{background:var(--green-tint);color:var(--green);}
+.badge.amber{background:var(--amber-tint);color:var(--amber);}
+.badge.red{background:var(--red-tint);color:var(--red);}
+.badge.grey{background:#EEEDE6;color:var(--ink-soft);}
+
+/* ===== Forms ===== */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;}
+.form-grid.cols-3{grid-template-columns:1fr 1fr 1fr;}
+.f-field{display:flex;flex-direction:column;gap:5px;}
+.f-field.span2{grid-column:span 2;}
+.f-field label{font-size:11.5px;color:var(--ink-soft);font-weight:500;}
+.f-field input,.f-field select,.f-field textarea{
+  padding:8px 10px;border:1px solid var(--line);border-radius:var(--radius);background:#fff;color:var(--ink);
+}
+.f-field input:focus,.f-field select:focus,.f-field textarea:focus{outline:none;border-color:var(--azure);box-shadow:0 0 0 3px var(--azure-tint);}
+.f-field textarea{resize:vertical;min-height:60px;}
+.f-hint{font-size:10.5px;color:var(--ink-soft);}
+
+/* ===== Modal ===== */
+#modal-backdrop{position:fixed;inset:0;background:rgba(18,32,58,0.45);display:none;align-items:flex-start;justify-content:center;z-index:100;padding:40px 20px;overflow-y:auto;}
+#modal-backdrop.open{display:flex;}
+.modal{background:#fff;border-radius:var(--radius);width:100%;max-width:640px;box-shadow:0 20px 50px rgba(18,32,58,0.25);}
+.modal.wide{max-width:820px;}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;}
+.modal-head h3{margin:0;font-size:16px;font-family:'Fraunces',serif;font-weight:600;}
+.modal-close{font-size:18px;color:var(--ink-soft);border:none;background:none;padding:2px 6px;}
+.modal-body{padding:20px;max-height:70vh;overflow-y:auto;}
+.modal-foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px;}
+
+/* ===== Room grid ===== */
+.room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;}
+.room-card{border:1px solid var(--line);border-radius:var(--radius);background:#fff;overflow:hidden;}
+.room-card .rc-top{padding:11px 13px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center;}
+.room-card .rc-num{font-family:'Fraunces',serif;font-size:17px;font-weight:600;}
+.room-card .rc-body{padding:11px 13px;font-size:12px;}
+.room-card .rc-body div{margin-bottom:4px;color:var(--ink-soft);}
+.room-card .rc-body strong{color:var(--ink);font-weight:600;}
+.room-card .rc-bar{height:4px;}
+.room-card .rc-foot{padding:8px 13px;background:var(--paper);display:flex;gap:6px;flex-wrap:wrap;}
+
+/* status colors */
+.st-available{background:var(--green);} .st-available-bg{background:var(--green-tint);color:var(--green);}
+.st-occupied{background:var(--azure);} .st-occupied-bg{background:var(--azure-tint);color:var(--azure-deep);}
+.st-reserved{background:var(--amber);} .st-reserved-bg{background:var(--amber-tint);color:var(--amber);}
+.st-cleaning{background:#8A6FB0;} .st-cleaning-bg{background:#EFE9F5;color:#8A6FB0;}
+.st-clean{background:var(--teal);} .st-clean-bg{background:var(--teal-tint);color:var(--teal);}
+.st-maintenance{background:var(--red);} .st-maintenance-bg{background:var(--red-tint);color:var(--red);}
+.st-blocked{background:#5B6B85;} .st-blocked-bg{background:#E7EAEF;color:#5B6B85;}
+.st-dirty{background:#A5673F;} .st-dirty-bg{background:#F4E9DF;color:#A5673F;}
+.st-inspected{background:#2F8F5B;} .st-inspected-bg{background:var(--green-tint);color:var(--green);}
+
+/* Calendar */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);}
+.cal-dow{background:var(--paper);text-align:center;font-size:10.5px;font-weight:600;color:var(--ink-soft);padding:7px 0;}
+.cal-cell{background:#fff;min-height:104px;padding:6px;font-size:11px;}
+.cal-cell .d-num{font-size:11px;color:var(--ink-soft);margin-bottom:4px;}
+.cal-cell.today .d-num{color:var(--azure);font-weight:700;}
+.cal-cell.faded{background:#F7F6F1;}
+.cal-cell.faded .d-num{color:#B9B6A9;}
+.cal-chip{font-size:10px;padding:2px 5px;border-radius:2px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;}
+.cal-chip.av{background:var(--azure-tint);color:var(--azure-deep);border-left:2px solid var(--azure);}
+.cal-chip.as{background:var(--teal-tint);color:var(--teal);border-left:2px solid var(--teal);}
+
+/* Empty state */
+.empty-state{padding:50px 20px;text-align:center;color:var(--ink-soft);}
+.empty-state .es-ic{font-size:28px;margin-bottom:10px;}
+.empty-state .es-t{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:4px;}
+
+/* Utility */
+.flex{display:flex;align-items:center;}
+.gap-6{gap:6px;} .gap-8{gap:8px;} .gap-10{gap:10px;} .gap-14{gap:14px;}
+.mt-0{margin-top:0;} .mb-0{margin-bottom:0;}
+.text-soft{color:var(--ink-soft);}
+.text-right{text-align:right;}
+.w-full{width:100%;}
+.tag-prop{font-size:10px;font-weight:600;padding:2px 6px;border-radius:2px;}
+.tag-prop.azurevista{background:var(--azure-tint);color:var(--azure-deep);}
+.tag-prop.azuresuite{background:var(--teal-tint);color:var(--teal);}
+
+.step-track{display:flex;margin-bottom:20px;}
+.step{flex:1;text-align:center;font-size:11px;color:var(--ink-soft);position:relative;padding-bottom:10px;border-bottom:2px solid var(--line);}
+.step.active{color:var(--azure);font-weight:600;border-bottom-color:var(--azure);}
+.step.done{color:var(--green);border-bottom-color:var(--green);}
+
+#login-screen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at top left,#1B3A63,#0D1A2E 65%);
+}
+.login-card{background:var(--paper);width:380px;border-radius:4px;padding:36px 34px 30px;box-shadow:0 30px 70px rgba(0,0,0,0.35);}
+.login-brand{margin-bottom:26px;}
+.login-brand .lb-mark{font-family:'Fraunces',serif;font-size:24px;font-weight:600;color:var(--ink);}
+.login-brand .lb-sub{font-size:11.5px;color:var(--ink-soft);margin-top:4px;letter-spacing:.2px;}
+.login-foot{margin-top:16px;display:flex;justify-content:space-between;font-size:12px;}
+.err-msg{background:var(--red-tint);color:var(--red);padding:8px 11px;border-radius:3px;font-size:12px;margin-bottom:14px;}
+
+@media(max-width:880px){
+  #sidebar{position:fixed;left:-222px;transition:left .18s;z-index:200;}
+  #sidebar.open{left:0;}
+  .search-box{display:none;}
+}
+@media print{
+  #sidebar,#topbar,.no-print{display:none !important;}
+  #content{padding:0;}
+  body{background:#fff;}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="modal-backdrop"><div id="modal-inner"></div></div>
+<script>
+/* =========================================================
+   AZURE HOSPITALITY — helpers, storage, sample data
+========================================================= */
+const STORE_KEY = 'azh-data-v1';
+function todayStr(){
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+function uid(prefix){ return prefix + '-' + Math.random().toString(36).slice(2,8).toUpperCase(); }
+function fmtINR(n){
+  if(!auth || !auth.loggedIn || auth.role !== 'Admin'){
+    return '₹ xxxx';
+  }
+  n = Math.round(Number(n)||0);
+  return '₹' + n.toLocaleString('en-IN');
+}
+function fmtDate(d){ if(!d) return '—'; const dt = new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); }
+function fmtDateShort(d){ if(!d) return '—'; const dt = new Date(d+'T00:00:00'); return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}); }
+function fmtDateTime(d){ if(!d) return '—'; const dt = new Date(d); return dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short'}) + ' · ' + dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); }
+function nightsBetween(a,b){ const ms = new Date(b) - new Date(a); return Math.max(1, Math.round(ms/86400000)); }
+function daysDiff(a,b){ return Math.round((new Date(b) - new Date(a))/86400000); }
+function addDays(dstr,n){ const d = new Date(dstr+'T00:00:00'); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function downloadCSV(filename, rows){
+  if(!rows.length){ toast('Nothing to export'); return; }
+  const headers = Object.keys(rows[0]);
+  const csv = [headers.join(',')].concat(rows.map(r=>headers.map(h=>{
+    let v = r[h]==null?'':String(r[h]); if(v.includes(',')||v.includes('"')) v = '"'+v.replace(/"/g,'""')+'"'; return v;
+  }).join(','))).join('\n');
+  const blob = new Blob([csv],{type:'text/csv'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click();
+}
+let toastTimer=null;
+function toast(msg){
+  let t = document.getElementById('toast-el');
+  if(!t){ t = document.createElement('div'); t.id='toast-el';
+    t.style.cssText='position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#12203A;color:#fff;padding:10px 18px;border-radius:4px;font-size:12.5px;z-index:500;box-shadow:0 8px 24px rgba(0,0,0,.25);';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg; t.style.opacity='1';
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>{ t.style.transition='opacity .4s'; t.style.opacity='0'; },2200);
+}
+
+const OTA_PLATFORMS = ['Airbnb','MakeMyTrip','Goibibo','Booking.com','Agoda','Expedia'];
+const BOOKING_SOURCES = ['Direct','Walk-in','Phone','WhatsApp','Website','Airbnb','MakeMyTrip','Goibibo','Booking.com','Agoda','Expedia','Corporate','Other OTA'];
+const OTA_SOURCES = ['Airbnb','MakeMyTrip','Goibibo','Booking.com','Agoda','Expedia','Other OTA'];
+const EXPENSE_CATEGORIES = {
+  'Utilities':['Electricity','Water','Internet','Gas'],
+  'Operations':['Cleaning','Laundry','Maintenance','Repairs','Security','Housekeeping','Reception','Transportation'],
+  'Guest Supplies':['Soap','Shampoo','Conditioner','Toothbrush','Toothpaste','Towels','Bedsheets','Pillows','Blankets','Toiletries'],
+  'Property':['Rent','Property tax','Insurance','Furniture','Appliances','Repairs'],
+  'Financial':['OTA commission','Payment gateway charges','Bank charges','Refunds'],
+  'Other':['Miscellaneous']
+};
+const INVENTORY_CATEGORIES = ['Toiletries','Cleaning','Linen','Towels','Kitchen','Food supplies','Maintenance','Electrical','Guest amenities','Office supplies'];
+const ROLES = ['Owner','Admin','Manager','Receptionist','Housekeeping','Accountant'];
+
+function buildSampleData(){
+  const rooms = [
+    {id:'RM-101',property:'azurevista',number:'101',type:'Standard',rate:3000,status:'occupied'},
+    {id:'RM-102',property:'azurevista',number:'102',type:'Standard',rate:1786,status:'available'},
+    {id:'RM-103',property:'azurevista',number:'103',type:'Standard',rate:3125,status:'available'},
+    {id:'RM-104',property:'azurevista',number:'104',type:'Standard',rate:1786,status:'available'},
+    {id:'RM-105',property:'azurevista',number:'105',type:'Deluxe',rate:3200,status:'available'},
+    {id:'RM-106',property:'azurevista',number:'106',type:'Deluxe',rate:3200,status:'available'},
+    {id:'RM-107',property:'azurevista',number:'107',type:'Deluxe',rate:3200,status:'available'},
+    {id:'RM-108',property:'azurevista',number:'108',type:'Suite',rate:4800,status:'available'},
+    {id:'RM-201',property:'azurevista',number:'201',type:'Deluxe',rate:3125,status:'available'},
+    {id:'RM-203',property:'azurevista',number:'203',type:'Standard',rate:1786,status:'available'},
+  ];
+  const units = [
+    {id:'UN-1',property:'azuresuite',number:'Azure Suite',type:'2BHK Apartment',rate:6500,status:'available'},
+  ];
+  const guests = [
+    {id:'GU-2001',name:'Mayur Parashar',mobile:'8446688776',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:6600,outstanding:6600},
+    {id:'GU-2002',name:'Pratham / Kirti',mobile:'7520925877',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:3500,outstanding:0},
+    {id:'GU-2003',name:'Shubham Dhale / Aditi Srivastava',mobile:'8172899211',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:3700,outstanding:0},
+    {id:'GU-2004',name:'Raghunath',mobile:'9870011223',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:4000,outstanding:0},
+    {id:'GU-2005',name:'Pratham & Kirti',mobile:'9555478882',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:2000,outstanding:0},
+    {id:'GU-2006',name:'Dinkar Khatri & Sheetal Kapoor',mobile:'8500477776',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:7000,outstanding:0},
+    {id:'GU-2007',name:'Pawan Kr. Gupta',mobile:'9474838414',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:2000,outstanding:0},
+  ];
+  const bookings = [
+    {id:'BK-B1EW3I',property:'azurevista',roomId:'RM-101',guestId:'GU-2001',guestName:'Mayur Parashar',mobile:'8446688776',email:'',adults:1,children:0,checkIn:'2026-09-23',checkInTime:'13:00',checkOut:'2026-09-25',checkOutTime:'11:00',rate:3000,discount:0,advance:0,source:'Direct',status:'checked-in',payment:'unpaid',notes:'Food',createdBy:'Front Desk',createdDate:'2026-09-23'},
+    {id:'BK-REG-09',property:'azurevista',roomId:'RM-103',guestId:'GU-2002',guestName:'Pratham / Kirti',mobile:'7520925877',email:'',adults:2,children:0,checkIn:'2026-09-21',checkInTime:'12:00',checkOut:'2026-09-22',checkOutTime:'11:00',rate:3125,discount:0,advance:3500,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-21'},
+    {id:'BK-REG-01',property:'azurevista',roomId:'RM-201',guestId:'GU-2003',guestName:'Shubham Dhale / Aditi Srivastava',mobile:'8172899211',email:'',adults:2,children:0,checkIn:'2026-09-20',checkInTime:'12:00',checkOut:'2026-09-21',checkOutTime:'11:00',rate:3304,discount:0,advance:3700,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-20'},
+    {id:'BK-REG-08',property:'azurevista',roomId:'RM-104',guestId:'GU-2004',guestName:'Raghunath',mobile:'9870011223',email:'',adults:1,children:0,checkIn:'2026-09-18',checkInTime:'12:00',checkOut:'2026-09-20',checkOutTime:'11:00',rate:1786,discount:0,advance:4000,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-18'},
+    {id:'BK-REG-10',property:'azurevista',roomId:'RM-203',guestId:'GU-2005',guestName:'Pratham & Kirti',mobile:'9555478882',email:'',adults:2,children:0,checkIn:'2026-09-18',checkInTime:'12:00',checkOut:'2026-09-19',checkOutTime:'11:00',rate:1786,discount:0,advance:2000,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-18'},
+    {id:'BK-REG-07',property:'azurevista',roomId:'RM-201',guestId:'GU-2006',guestName:'Dinkar Khatri & Sheetal Kapoor',mobile:'8500477776',email:'',adults:2,children:0,checkIn:'2026-09-17',checkInTime:'12:00',checkOut:'2026-09-19',checkOutTime:'11:00',rate:3125,discount:0,advance:7000,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-17'},
+    {id:'BK-REG-05',property:'azurevista',roomId:'RM-102',guestId:'GU-2007',guestName:'Pawan Kr. Gupta',mobile:'9474838414',email:'',adults:1,children:0,checkIn:'2026-09-15',checkInTime:'12:00',checkOut:'2026-09-16',checkOutTime:'11:00',rate:1786,discount:0,advance:2000,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-15'},
+  ];
+  const payments = [
+    {id:'TXN-REG-09',bookingId:'BK-REG-09',property:'azurevista',amount:3500,method:'Cash',date:'2026-09-21',notes:'Checkout payment',addedBy:'Front Desk'},
+    {id:'TXN-REG-01',bookingId:'BK-REG-01',property:'azurevista',amount:3700,method:'Cash',date:'2026-09-20',notes:'Checkout payment',addedBy:'Front Desk'},
+    {id:'TXN-REG-08',bookingId:'BK-REG-08',property:'azurevista',amount:4000,method:'Cash',date:'2026-09-18',notes:'Checkout payment',addedBy:'Front Desk'},
+    {id:'TXN-REG-10',bookingId:'BK-REG-10',property:'azurevista',amount:2000,method:'UPI',date:'2026-09-18',notes:'Checkout payment',addedBy:'Front Desk'},
+    {id:'TXN-REG-07',bookingId:'BK-REG-07',property:'azurevista',amount:7000,method:'Cash',date:'2026-09-17',notes:'Checkout payment',addedBy:'Front Desk'},
+    {id:'TXN-REG-05',bookingId:'BK-REG-05',property:'azurevista',amount:2000,method:'Cash',date:'2026-09-15',notes:'Checkout payment',addedBy:'Front Desk'},
+  ];
+  const invoices = [
+    {id:'INV-2026-0001',bookingId:'BK-REG-09',property:'azurevista',guestName:'Pratham / Kirti',date:'2026-09-22',subtotal:3125,discount:0,tax:375,total:3500,advance:3500,balance:0},
+    {id:'INV-2026-0002',bookingId:'BK-REG-01',property:'azurevista',guestName:'Shubham Dhale / Aditi Srivastava',date:'2026-09-21',subtotal:3304,discount:0,tax:396,total:3700,advance:3700,balance:0},
+    {id:'INV-2026-0003',bookingId:'BK-REG-08',property:'azurevista',guestName:'Raghunath',date:'2026-09-20',subtotal:3572,discount:0,tax:428,total:4000,advance:4000,balance:0},
+    {id:'INV-2026-0004',bookingId:'BK-REG-10',property:'azurevista',guestName:'Pratham & Kirti',date:'2026-09-19',subtotal:1786,discount:0,tax:214,total:2000,advance:2000,balance:0},
+    {id:'INV-2026-0005',bookingId:'BK-REG-07',property:'azurevista',guestName:'Dinkar Khatri & Sheetal Kapoor',date:'2026-09-19',subtotal:6250,discount:0,tax:750,total:7000,advance:7000,balance:0},
+    {id:'INV-2026-0006',bookingId:'BK-REG-05',property:'azurevista',guestName:'Pawan Kr. Gupta',date:'2026-09-16',subtotal:1786,discount:0,tax:214,total:2000,advance:2000,balance:0},
+  ];
+  const expenses = [];
+  const foodBills = [];
+  const inventory = [
+    {id:'INV-1',property:'azurevista',item:'Room Soap',category:'Toiletries',unit:'pcs',minStock:20,stock:8,purchasePrice:12,supplier:'Shine Distributors'},
+    {id:'INV-2',property:'azurevista',item:'Shampoo Sachets',category:'Toiletries',unit:'pcs',minStock:30,stock:44,purchasePrice:8,supplier:'Shine Distributors'},
+    {id:'INV-3',property:'azurevista',item:'Bedsheets (Queen)',category:'Linen',unit:'pcs',minStock:16,stock:22,purchasePrice:450,supplier:'Lucknow Linens Co.'},
+    {id:'INV-4',property:'azurevista',item:'Bath Towels',category:'Towels',unit:'pcs',minStock:24,stock:15,purchasePrice:220,supplier:'Lucknow Linens Co.'},
+    {id:'INV-5',property:'azurevista',item:'Toilet Paper Rolls',category:'Toiletries',unit:'pcs',minStock:40,stock:12,purchasePrice:18,supplier:'Shine Distributors'},
+  ];
+  const purchases = [];
+  const suppliers = [
+    {id:'SUP-1',name:'Shine Distributors',phone:'9812345670',email:'orders@shinedist.in',gstin:'09ABCDE1234F1Z5',products:'Toiletries, cleaning supplies',outstanding:0},
+    {id:'SUP-2',name:'Lucknow Linens Co.',phone:'9856781234',email:'sales@lucknowlinens.in',gstin:'09FGHIJ5678K2Z1',products:'Linen, towels, bedsheets',outstanding:0},
+  ];
+  const staff = [
+    {id:'ST-1',name:'You (Owner)',phone:'9800000001',email:'owner@azurehospitality.in',role:'Owner',property:'all',joined:'2023-01-01',status:'Active'},
+  ];
+  const maintenance = [];
+  const housekeeping = [];
+  const ota = {};
+  ['azurevista','azuresuite'].forEach(p=>{
+    OTA_PLATFORMS.forEach(plat=>{
+      const isConnected = (p==='azurevista' && (plat==='MakeMyTrip'||plat==='Booking.com')) || (p==='azuresuite' && plat==='Airbnb');
+      ota[p+'|'+plat] = {
+        property: p,
+        platform: plat,
+        status: isConnected ? 'connected' : 'not_configured',
+        apiKey: isConnected ? `${plat.toUpperCase().slice(0,3)}-LIVE-KEY-9981` : '',
+        webhookSecret: isConnected ? `whsec_${plat.toLowerCase().replace(/[^a-z]/g,'')}_8841` : '',
+        icalImportUrl: isConnected ? `https://www.${plat.toLowerCase().replace(/[^a-z]/g,'')}.com/calendar/ical/${p}-feed.ics` : '',
+        icalExportUrl: `https://azurehospitality.in/api/ical/export/${p}/${plat.toLowerCase().replace(/[^a-z]/g,'')}.ics`,
+        autoSync: true,
+        lastSync: isConnected ? new Date(Date.now()-1800000).toISOString() : null
+      };
+    });
+  });
+  const otaSyncLogs = [];
+  const auditLog = [];
+  return {
+    properties:{
+      azurevista:{id:'azurevista',name:'Azurevista',type:'Hotel',location:'Gorakhpur, Uttar Pradesh, India',checkInTime:'13:00',checkOutTime:'11:00',gstin:'09AZUREV1234H1Z9'},
+      azuresuite:{id:'azuresuite',name:'Azure Suite',type:'Vacation Rental',location:'Lucknow, Uttar Pradesh, India',checkInTime:'14:00',checkOutTime:'11:00',gstin:'09AZURES5678S1Z2'},
+    },
+    rooms, units, guests, bookings, foodBills, payments, invoices, expenses, inventory, purchases, suppliers, staff, maintenance, housekeeping, ota, otaSyncLogs, auditLog,
+    userPasswords: { Admin: 'admin123', Manager: 'manager123', Receptionist: 'reception123' },
+    settings:{
+      businessName:'Azure Hospitality', ownerEmail:'owner@azurehospitality.in', address:'Uttar Pradesh, India',
+      tax:{cgst:6,sgst:6,igst:0}, invoicePrefix:'INV-2026-', invoiceFooter:'Thank you for staying with us. Rates are inclusive of applicable taxes unless stated otherwise.',
+      terms:'Check-in after property check-in time. Government ID mandatory at check-in. Cancellations per policy shared at booking.'
+    },
+    invoiceSeq: 7,
+    lastSync: new Date().toISOString(),
+  };
+}
+
+function clearAllRecords(){
+  if(!state) return;
+  state.payments = [];
+  state.expenses = [];
+  state.guests = [];
+  state.bookings = [];
+  state.invoices = [];
+  state.foodBills = [];
+  state.housekeeping = [];
+  state.auditLog = [];
+  if(state.rooms) state.rooms.forEach(r => r.status = 'available');
+  if(state.units) state.units.forEach(u => u.status = 'available');
+  persist();
+}
+
+let state = null;
+let saveTimer = null;
+
+function getUserPassword(role){
+  if(state && state.userPasswords && state.userPasswords[role]){
+    return state.userPasswords[role];
+  }
+  return role === 'Admin' ? 'admin123' : (role === 'Manager' ? 'manager123' : 'reception123');
+}
+
+function setUserPassword(role, newPass){
+  if(!state.userPasswords) state.userPasswords = { Admin: 'admin123', Manager: 'manager123', Receptionist: 'reception123' };
+  state.userPasswords[role] = newPass;
+}
+
+function persist(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async ()=>{
+    try{
+      state.lastSync = new Date().toISOString();
+      const serialized = JSON.stringify(state);
+      if(window.storage && typeof window.storage.set === 'function'){
+        try { await window.storage.set(STORE_KEY, serialized, false); } catch(err){}
+      }
+      if(typeof localStorage !== 'undefined'){
+        localStorage.setItem(STORE_KEY, serialized);
+      }
+      renderTopbarStatus();
+    }catch(e){ console.error('Save failed', e); }
+  }, 100);
+}
+async function loadInitial(){
+  try{
+    let raw = null;
+    if(window.storage && typeof window.storage.get === 'function'){
+      try {
+        const res = await window.storage.get(STORE_KEY, false);
+        if(res && res.value) raw = res.value;
+      } catch(err){}
+    }
+    if(!raw && typeof localStorage !== 'undefined'){
+      raw = localStorage.getItem(STORE_KEY);
+    }
+    if(raw){
+      const parsed = JSON.parse(raw);
+      if(parsed && typeof parsed === 'object'){
+        state = parsed;
+        if(!state.userPasswords) state.userPasswords = { Admin: 'admin123', Manager: 'manager123', Receptionist: 'reception123' };
+        if(!state.foodBills) state.foodBills = [];
+        if(!state.settings) state.settings = buildSampleData().settings;
+        return;
+      }
+    }
+  }catch(e){
+    console.error('Error loading stored state:', e);
+  }
+  state = buildSampleData();
+  persist();
+}
+
+/* =========================================================
+   APP SHELL — auth, sidebar, topbar, modal, router
+========================================================= */
+const SYSTEM_USERS = [
+  { role:'Admin', email:'admin@azurehospitality.in', username:'admin', pass:'admin123', name:'You (Owner / Admin)', icon:'🛡️', desc:'Full System & Finance Access' },
+  { role:'Manager', email:'manager@azurehospitality.in', username:'manager', pass:'manager123', name:'Neha Kapoor (Manager)', icon:'👔', desc:'Operations & Staff (Finance Hidden)' },
+  { role:'Receptionist', email:'reception@azurehospitality.in', username:'reception', pass:'reception123', name:'Sanjay Yadav (Receptionist)', icon:'🎧', desc:'Front Desk & Guests (Finance Hidden)' }
+];
+
+let auth = { loggedIn:false, user:null, role:null, email:null, rememberMe:false };
+let selectedLoginRole = 'Admin';
+let ui = { view:'dashboard', property:'all', selectedId:null, notifOpen:false, propMenuOpen:false, sidebarOpen:false };
+
+const NAV = [
+  {group:'', items:[ {id:'dashboard', label:'Dashboard', ic:'▤'} ]},
+  {group:'Operations', items:[
+    {id:'bookings', label:'Bookings', ic:'▦'},
+    {id:'calendar', label:'Calendar', ic:'▧'},
+    {id:'properties', label:'Properties', ic:'⌂'},
+    {id:'rooms', label:'Rooms / Units', ic:'▥'},
+    {id:'guests', label:'Guests', ic:'◍'},
+    {id:'checkinout', label:'Check-in / Check-out', ic:'⇄'},
+  ]},
+  {group:'Finance', items:[
+    {id:'invoices', label:'Invoices', ic:'▤'},
+    {id:'payments', label:'Payments', ic:'₹'},
+    {id:'expenses', label:'Expenses', ic:'−'},
+  ]},
+  {group:'Supply', items:[
+    {id:'inventory', label:'Inventory', ic:'▣'},
+    {id:'purchases', label:'Purchases', ic:'▧'},
+  ]},
+  {group:'Property Ops', items:[
+    {id:'housekeeping', label:'Housekeeping', ic:'✦'},
+    {id:'maintenance', label:'Maintenance', ic:'⚙'},
+  ]},
+  {group:'Growth', items:[
+    {id:'ota', label:'OTA / Channel Manager', ic:'⇅'},
+    {id:'reports', label:'Reports', ic:'▤'},
+  ]},
+  {group:'', items:[
+    {id:'staff', label:'Staff', ic:'◍'},
+    {id:'notifications', label:'Notifications', ic:'●'},
+    {id:'settings', label:'Settings', ic:'⚬'},
+  ]},
+];
+
+function getFilteredNav(){
+  const role = auth.role || 'Admin';
+  if(role === 'Admin') return NAV;
+  if(role === 'Manager') {
+    return NAV.filter(g => g.group !== 'Finance');
+  }
+  if(role === 'Receptionist') {
+    return NAV.filter(g => g.group !== 'Finance' && g.group !== 'Supply' && g.group !== 'Growth')
+              .map(g => ({
+                ...g,
+                items: g.items.filter(it => !['settings', 'staff'].includes(it.id))
+              })).filter(g => g.items.length > 0);
+  }
+  return NAV;
+}
+
+function propColor(p){ return p==='azurevista' ? 'blue' : 'teal'; }
+function propName(p){ return p==='azurevista' ? 'Azurevista' : (p==='azuresuite' ? 'Azure Suite' : 'All Properties'); }
+
+function scopedBookings(){ return state.bookings.filter(b=> ui.property==='all' || b.property===ui.property); }
+function scopedExpenses(){ return state.expenses.filter(e=> ui.property==='all' || e.property===ui.property); }
+function scopedInventory(){ return state.inventory.filter(i=> ui.property==='all' || i.property===ui.property); }
+function scopedGuests(){ return state.guests.filter(g=> ui.property==='all' || g.properties.includes(ui.property)); }
+function scopedRooms(){ return state.rooms.concat(state.units).filter(r=> ui.property==='all' || r.property===ui.property); }
+function scopedStaff(){ return state.staff.filter(s=> ui.property==='all' || s.property==='all' || s.property===ui.property); }
+function scopedMaintenance(){ return state.maintenance.filter(m=> ui.property==='all' || m.property===ui.property); }
+function scopedPayments(){ return state.payments.filter(p=> ui.property==='all' || p.property===ui.property); }
+function roomLabel(roomId){
+  const r = state.rooms.find(x=>x.id===roomId) || state.units.find(x=>x.id===roomId);
+  return r ? (r.property==='azurevista' ? 'Room '+r.number : r.number) : roomId;
+}
+function roomObj(roomId){ return state.rooms.find(x=>x.id===roomId) || state.units.find(x=>x.id===roomId); }
+function guestObj(id){ return state.guests.find(g=>g.id===id); }
+function bookingObj(id){ return state.bookings.find(b=>b.id===id); }
+
+function computeNotifications(){
+  const notifs = [];
+  scopedInventory().filter(i=>i.stock<i.minStock).forEach(i=> notifs.push({t:'Low stock', m:`${i.item} — ${i.stock} left (min ${i.minStock}) · ${propName(i.property)}`, kind:'amber'}));
+  scopedBookings().filter(b=> (b.payment==='partial') && ['reserved','confirmed','checked-in'].includes(b.status)).forEach(b=> notifs.push({t:'Pending payment', m:`${b.guestName} · ${b.id} · balance ${fmtINR(bookingBalance(b))}`, kind:'red'}));
+  scopedBookings().filter(b=> b.checkIn===todayStr() && ['reserved','confirmed'].includes(b.status)).forEach(b=> notifs.push({t:'Upcoming check-in today', m:`${b.guestName} · ${roomLabel(b.roomId)} · ${propName(b.property)}`, kind:'blue'}));
+  scopedBookings().filter(b=> b.checkOut===todayStr() && b.status==='checked-in').forEach(b=> notifs.push({t:'Check-out due today', m:`${b.guestName} · ${roomLabel(b.roomId)}`, kind:'blue'}));
+  scopedMaintenance().filter(m=> m.status!=='Completed').forEach(m=> notifs.push({t:'Maintenance open', m:`${m.issue} · ${roomLabel(m.roomId)} · ${m.priority} priority`, kind:'red'}));
+  scopedBookings().filter(b=> b.source!=='Direct' && OTA_SOURCES.includes(b.source) && b.createdDate===todayStr()).forEach(b=> notifs.push({t:'OTA booking received', m:`${b.source} · ${b.guestName} · ${propName(b.property)}`, kind:'teal'}));
+  return notifs;
+}
+function bookingFoodBills(b){
+  if(!b) return [];
+  if(!state.foodBills) state.foodBills = [];
+  return state.foodBills.filter(f=> f.bookingId===b.id);
+}
+
+function bookingFoodTotal(b){
+  return bookingFoodBills(b).reduce((s,f)=> s + (f.amount||0), 0);
+}
+
+function bookingTotalCharges(b){
+  if(!b) return { nights:0, roomCharges:0, foodCharges:0, discount:0, gross:0, taxPct:0, tax:0, total:0, paid:0, balance:0 };
+  const nights = nightsBetween(b.checkIn, b.checkOut);
+  const roomCharges = nights * (b.rate || 0);
+  const foodCharges = bookingFoodTotal(b);
+  const discount = b.discount || 0;
+  const gross = Math.max(0, roomCharges + foodCharges - discount);
+  const taxPct = (state.settings && state.settings.tax) ? (state.settings.tax.cgst + state.settings.tax.sgst + state.settings.tax.igst) : 12;
+  const tax = Math.round(gross * taxPct / 100);
+  const total = gross + tax;
+  const paid = (state.payments || []).filter(p => p.bookingId === b.id).reduce((s, p) => s + p.amount, 0);
+  const balance = Math.max(0, total - paid);
+  return { nights, roomCharges, foodCharges, discount, gross, taxPct, tax, total, paid, balance };
+}
+
+function bookingBalance(b){
+  return bookingTotalCharges(b).balance;
+}
+
+function render(){
+  const root = document.getElementById('root');
+  if(!auth.loggedIn){ root.innerHTML = renderLogin(); attachLoginEvents(); return; }
+  root.innerHTML = `
+    <div id="app-shell">
+      ${renderSidebar()}
+      <div id="main">
+        ${renderTopbar()}
+        <div id="content">${renderView()}</div>
+      </div>
+    </div>`;
+  attachShellEvents();
+  attachViewEvents();
+}
+
+function renderSidebar(){
+  const navItems = getFilteredNav();
+  return `
+  <div id="sidebar" class="${ui.sidebarOpen?'open':''}">
+    <div class="sb-brand">
+      <div class="mark">Azure Hospitality</div>
+      <div class="sub">Multi-Property Management</div>
+    </div>
+    <div class="sb-nav">
+      ${navItems.map(g=>`
+        ${g.group?`<div class="sb-group-label">${g.group}</div>`:''}
+        ${g.items.map(it=>`
+          <div class="sb-item ${ui.view===it.id?'active':''}" data-nav="${it.id}">
+            <span class="ic">${it.ic}</span><span>${it.label}</span>
+          </div>`).join('')}
+      `).join('')}
+    </div>
+    <div class="sb-foot">
+      <div>Signed in as <strong>${esc(auth.user)}</strong></div>
+      <div style="font-size:10px;color:var(--azure-tint);margin-top:2px;">Layer: <span class="badge ${auth.role==='Admin'?'green':auth.role==='Manager'?'blue':'amber'}" style="font-size:9.5px;padding:1px 5px;">${esc(auth.role)}</span></div>
+    </div>
+  </div>`;
+}
+
+function renderTopbar(){
+  const notifs = computeNotifications();
+  const roleBadgeClass = auth.role === 'Admin' ? 'green' : (auth.role === 'Manager' ? 'blue' : 'amber');
+  const now = new Date();
+  const initDateStr = now.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const initTimeStr = now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+
+  return `
+  <div id="topbar">
+    <div class="prop-switcher">
+      <div class="prop-btn" id="prop-btn"><span class="dot" style="background:${ui.property==='azurevista'?'#1F5FA8':ui.property==='azuresuite'?'#0E7C7B':'#3A4A63'}"></span> ${propName(ui.property)} <span style="margin-left:2px;opacity:.6">▾</span></div>
+      <div class="prop-menu ${ui.propMenuOpen?'open':''}" id="prop-menu">
+        <div class="prop-menu-item" data-prop="all"><span class="dot" style="background:#3A4A63"></span> All Properties</div>
+        <div class="prop-menu-item" data-prop="azurevista"><span class="dot" style="background:#1F5FA8"></span> Azurevista — Gorakhpur</div>
+        <div class="prop-menu-item" data-prop="azuresuite"><span class="dot" style="background:#0E7C7B"></span> Azure Suite — Lucknow</div>
+      </div>
+    </div>
+    <div class="search-box"><input id="global-search" placeholder="Search guests, bookings, rooms…" /></div>
+    <div class="top-right">
+      <div id="live-clock" style="font-size:12px;font-weight:600;color:var(--ink-soft);background:var(--paper);padding:5px 10px;border-radius:4px;border:1px solid var(--line);display:flex;align-items:center;gap:6px;" title="Real-time System Date &amp; Time">
+        <span style="font-size:13px;">🕒</span> <span id="clock-display">${initDateStr} · ${initTimeStr}</span>
+      </div>
+      <span class="status-pill online" id="net-status"><span class="dot"></span> Online</span>
+      <span class="text-soft" id="last-sync" style="font-size:11px;">Last synced: ${fmtDateTime(state.lastSync)}</span>
+      <div class="bell" id="bell-btn">🔔${notifs.length?`<span class="badge">${notifs.length}</span>`:''}</div>
+      <div class="notif-panel ${ui.notifOpen?'open':''}" id="notif-panel">
+        ${notifs.length? notifs.map(n=>`<div class="notif-item"><div class="t">${esc(n.t)}</div><div class="m">${esc(n.m)}</div></div>`).join('') : `<div class="notif-item"><div class="m">No alerts right now.</div></div>`}
+      </div>
+      <div class="user-chip" title="Active Role: ${esc(auth.role)}">
+        <div class="avatar">${esc(auth.user).slice(0,1).toUpperCase()}</div>
+        <div style="display:flex;flex-direction:column;line-height:1.2;">
+          <span>${esc(auth.user)}</span>
+          <span class="badge ${roleBadgeClass}" style="font-size:9.5px;padding:0 5px;width:fit-content;margin-top:1px;">${esc(auth.role)} Layer</span>
+        </div>
+      </div>
+      <button class="btn sm" id="switch-layer-btn" title="Switch or re-authenticate layer password">🔒 Switch Layer</button>
+      <button class="btn ghost sm" id="logout-btn">Logout</button>
+    </div>
+  </div>`;
+}
+
+function updateLiveClock(){
+  const el = document.getElementById('clock-display');
+  if(!el) return;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
+  const timeStr = now.toLocaleTimeString('en-GB', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  el.textContent = `${dateStr} · ${timeStr}`;
+}
+setInterval(updateLiveClock, 1000);
+
+function renderTopbarStatus(){
+  const el = document.getElementById('last-sync');
+  if(el) el.textContent = 'Last synced: ' + fmtDateTime(state.lastSync);
+}
+
+function openModal(title, bodyHtml, footHtml, wide){
+  document.getElementById('modal-inner').innerHTML = `
+    <div class="modal ${wide?'wide':''}">
+      <div class="modal-head"><h3>${esc(title)}</h3><button class="modal-close" id="modal-close-btn">✕</button></div>
+      <div class="modal-body">${bodyHtml}</div>
+      ${footHtml? `<div class="modal-foot">${footHtml}</div>` : ''}
+    </div>`;
+  document.getElementById('modal-backdrop').classList.add('open');
+  document.getElementById('modal-close-btn').onclick = closeModal;
+}
+function closeModal(){ document.getElementById('modal-backdrop').classList.remove('open'); document.getElementById('modal-inner').innerHTML=''; }
+document.getElementById('modal-backdrop').addEventListener('click', (e)=>{ if(e.target.id==='modal-backdrop') closeModal(); });
+
+function attachShellEvents(){
+  document.querySelectorAll('[data-nav]').forEach(el=> el.onclick = ()=>{ ui.view = el.dataset.nav; ui.selectedId=null; ui.sidebarOpen=false; render(); });
+  const propBtn = document.getElementById('prop-btn');
+  if(propBtn) propBtn.onclick = (e)=>{ e.stopPropagation(); ui.propMenuOpen=!ui.propMenuOpen; ui.notifOpen=false; render(); };
+  document.querySelectorAll('[data-prop]').forEach(el=> el.onclick = ()=>{ ui.property = el.dataset.prop; ui.propMenuOpen=false; render(); });
+  const bell = document.getElementById('bell-btn');
+  if(bell) bell.onclick = (e)=>{ e.stopPropagation(); ui.notifOpen=!ui.notifOpen; ui.propMenuOpen=false; render(); };
+  document.addEventListener('click', ()=>{ if(ui.notifOpen||ui.propMenuOpen){ ui.notifOpen=false; ui.propMenuOpen=false; render(); } }, {once:true});
+  const logout = document.getElementById('logout-btn');
+  if(logout) logout.onclick = ()=>{ auth = {loggedIn:false,user:null,role:null,rememberMe:false}; ui.view='dashboard'; render(); };
+  const switchBtn = document.getElementById('switch-layer-btn');
+  if(switchBtn) switchBtn.onclick = ()=>{ auth = {loggedIn:false,user:null,role:null,rememberMe:false}; render(); toast('Layer locked. Select role layer & enter password.'); };
+  const search = document.getElementById('global-search');
+  if(search){ search.oninput = ()=>{ if(search.value.trim().length>1){ ui.view='search'; ui.searchQuery=search.value.trim(); render(); document.getElementById('global-search').focus(); document.getElementById('global-search').value=search.value; document.getElementById('global-search').setSelectionRange(9999,9999);} }; }
+  updateNetStatus();
+}
+function updateNetStatus(){
+  const el = document.getElementById('net-status');
+  if(!el) return;
+  if(navigator.onLine){ el.className='status-pill online'; el.innerHTML='<span class="dot"></span> Online'; }
+  else{ el.className='status-pill offline'; el.innerHTML='<span class="dot"></span> Offline'; }
+}
+window.addEventListener('online', ()=>{ updateNetStatus(); toast('Back online — synchronizing…'); });
+window.addEventListener('offline', ()=>{ updateNetStatus(); toast('You are offline — changes saved locally'); });
+
+function renderLogin(){
+  const activePreset = SYSTEM_USERS.find(u => u.role === selectedLoginRole) || SYSTEM_USERS[0];
+  const currentPass = getUserPassword(activePreset.role);
+  return `
+  <div id="login-screen">
+    <div class="login-card" style="max-width:440px;">
+      <div class="login-brand">
+        <div class="lb-mark">Azure Hospitality</div>
+        <div class="lb-sub">Multi-Property Management · Layered Password System</div>
+      </div>
+
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;letter-spacing:.3px;color:var(--ink-soft);margin-bottom:8px;font-weight:600;">SELECT USER LAYER:</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">
+          ${SYSTEM_USERS.map(u => `
+            <button type="button" class="btn sm role-select-btn ${selectedLoginRole===u.role?'primary':''}" data-role-btn="${u.role}" style="flex-direction:column;padding:8px 4px;height:auto;gap:2px;text-align:center;">
+              <span style="font-size:16px;">${u.icon}</span>
+              <span style="font-size:11.5px;font-weight:600;">${u.role}</span>
+            </button>
+          `).join('')}
+        </div>
+        <div class="f-hint" style="margin-top:6px;font-size:11px;color:var(--azure-deep);background:var(--azure-tint);padding:6px 10px;border-radius:3px;">
+          ℹ️ <strong>${activePreset.role} Layer</strong>: ${activePreset.desc}
+        </div>
+      </div>
+
+      <div id="login-err"></div>
+      <div class="f-field" style="margin-bottom:12px;"><label>Username / Email</label><input id="li-user" type="text" value="${esc(activePreset.email)}"/></div>
+      <div class="f-field" style="margin-bottom:6px;"><label>Password (Layer Protected)</label><input id="li-pass" type="password" value="${esc(currentPass)}"/></div>
+      <div class="login-foot">
+        <label class="flex gap-6" style="color:var(--ink-soft);"><input type="checkbox" id="li-remember"/> Remember session</label>
+        <a href="#" id="li-forgot">Forgot password?</a>
+      </div>
+      <button class="btn primary w-full" id="li-submit" style="margin-top:16px;justify-content:center;padding:9px;">Sign In to ${esc(activePreset.role)} Layer</button>
+    </div>
+  </div>`;
+}
+
+function attachLoginEvents(){
+  document.querySelectorAll('[data-role-btn]').forEach(btn => {
+    btn.onclick = () => {
+      selectedLoginRole = btn.dataset.roleBtn;
+      render();
+    };
+  });
+
+  document.getElementById('li-submit').onclick = () => {
+    const inputUser = document.getElementById('li-user').value.trim().toLowerCase();
+    const inputPass = document.getElementById('li-pass').value;
+    const errBox = document.getElementById('login-err');
+
+    const matched = SYSTEM_USERS.find(u => {
+      const expectedPass = getUserPassword(u.role);
+      return (u.email.toLowerCase() === inputUser || u.username.toLowerCase() === inputUser) &&
+             inputPass === expectedPass;
+    });
+
+    if(!matched){
+      errBox.innerHTML = `
+        <div style="background:var(--red-tint);color:var(--red);padding:9px 12px;border-radius:4px;margin-bottom:12px;font-size:12px;line-height:1.4;">
+          ⚠️ <strong>Access Denied</strong>: Invalid username or password for this layer.<br/>
+          <em>Current Passwords:</em> <code>${esc(getUserPassword('Admin'))}</code> (Admin), <code>${esc(getUserPassword('Manager'))}</code> (Manager), <code>${esc(getUserPassword('Receptionist'))}</code> (Receptionist).
+        </div>`;
+      return;
+    }
+
+    auth = {
+      loggedIn: true,
+      user: matched.name,
+      role: matched.role,
+      email: matched.email,
+      rememberMe: document.getElementById('li-remember').checked
+    };
+    ui.view = 'dashboard';
+    render();
+    toast(`Authenticated: ${matched.name} (${matched.role} Layer)`);
+  };
+
+  document.getElementById('li-forgot').onclick = (e) => {
+    e.preventDefault();
+    toast(`Passwords: Admin (${getUserPassword('Admin')}), Manager (${getUserPassword('Manager')}), Receptionist (${getUserPassword('Receptionist')})`);
+  };
+}
+
+function renderView(){
+  // Guard access to Finance for Non-Admin roles
+  if(['invoices','payments','expenses'].includes(ui.view) && auth.role !== 'Admin'){
+    return `
+    <div class="panel" style="max-width:580px;margin:40px auto;text-align:center;padding:40px 24px;">
+      <div style="font-size:48px;margin-bottom:12px;">🔒</div>
+      <h2 class="serif" style="margin-bottom:8px;color:var(--red);">Finance Module Restricted</h2>
+      <p style="color:var(--ink-soft);font-size:13.5px;max-width:460px;margin:0 auto 20px;line-height:1.5;">
+        Financial transactions, invoices, payment entries, and expense ledgers are password protected and strictly restricted to <strong>Admin</strong> access.<br/>
+        Your current active layer is <strong>${esc(auth.role)}</strong>.
+      </p>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button class="btn primary" onclick="ui.view='dashboard';render();">Back to Dashboard</button>
+        <button class="btn" onclick="auth={loggedIn:false,user:null,role:null};render();">Switch to Admin Login</button>
+      </div>
+    </div>`;
+  }
+
+  switch(ui.view){
+    case 'dashboard': return viewDashboard();
+    case 'bookings': return viewBookings();
+    case 'calendar': return viewCalendar();
+    case 'properties': return viewProperties();
+    case 'rooms': return viewRooms();
+    case 'guests': return viewGuests();
+    case 'checkinout': return viewCheckInOut();
+    case 'invoices': return viewInvoices();
+    case 'payments': return viewPayments();
+    case 'expenses': return viewExpenses();
+    case 'inventory': return viewInventory();
+    case 'purchases': return viewPurchases();
+    case 'housekeeping': return viewHousekeeping();
+    case 'maintenance': return viewMaintenance();
+    case 'ota': return viewOTA();
+    case 'reports': return viewReports();
+    case 'staff': return viewStaff();
+    case 'notifications': return viewNotifications();
+    case 'settings': return viewSettings();
+    case 'search': return viewSearch();
+    default: return viewDashboard();
+  }
+}
+function attachViewEvents(){
+  const fn = window['events_'+ui.view];
+  if(typeof fn === 'function') fn();
+}
+
+/* =========================================================
+   VIEW: DASHBOARD
+========================================================= */
+function propStats(prop, dateFrom, dateTo){
+  const bks = state.bookings.filter(b=> b.property===prop);
+  const inRange = (d)=> d>=dateFrom && d<=dateTo;
+  let revenue=0, expenses=0, otaComm=0;
+  bks.forEach(b=>{
+    // attribute revenue to nights that fall within range (simplified: use booking creation/stay overlap by check-in date within range)
+    if(inRange(b.checkIn)){
+      const nights = nightsBetween(b.checkIn,b.checkOut);
+      const gross = nights*b.rate - (b.discount||0);
+      revenue += gross;
+      if(OTA_SOURCES.includes(b.source)) otaComm += gross*0.18;
+    }
+  });
+  state.expenses.filter(e=>e.property===prop && inRange(e.date)).forEach(e=> expenses += e.amount);
+  const roomsForProp = prop==='azurevista'? state.rooms.filter(r=>r.property===prop) : state.units.filter(u=>u.property===prop);
+  const occupied = roomsForProp.filter(r=>r.status==='occupied').length;
+  const occPct = roomsForProp.length? Math.round(occupied/roomsForProp.length*100) : 0;
+  return { revenue, expenses, otaComm, profit: revenue-expenses-otaComm, occPct, bookingsCount: bks.filter(b=>inRange(b.checkIn)).length, totalUnits: roomsForProp.length };
+}
+function todayKPIs(){
+  const bks = ui.property==='all' ? state.bookings : state.bookings.filter(b=>b.property===ui.property);
+  const checkins = bks.filter(b=> b.checkIn===todayStr()).length;
+  const checkouts = bks.filter(b=> b.checkOut===todayStr()).length;
+  const newBookings = bks.filter(b=> b.createdDate===todayStr()).length;
+  const pays = scopedPayments().filter(p=>p.date===todayStr());
+  const revenue = pays.reduce((s,p)=>s+p.amount,0);
+  const exp = scopedExpenses().filter(e=>e.date===todayStr()).reduce((s,e)=>s+e.amount,0);
+  const pending = bks.filter(b=>['reserved','confirmed','checked-in'].includes(b.status)).reduce((s,b)=>s+bookingBalance(b),0);
+  return {checkins,checkouts,newBookings,revenue,expenses:exp,net:revenue-exp,pending};
+}
+function currentStatusCounts(){
+  const rs = scopedRooms();
+  const c = {available:0,occupied:0,reserved:0,cleaning:0,maintenance:0,blocked:0};
+  rs.forEach(r=>{ if(c[r.status]!=null) c[r.status]++; });
+  return {total:rs.length, ...c};
+}
+function viewDashboard(){
+  const k = todayKPIs();
+  const st = currentStatusCounts();
+  const av = propStats('azurevista','2026-09-01','2026-09-30');
+  const as = propStats('azuresuite','2026-09-01','2026-09-30');
+  const totalRev = av.revenue+as.revenue, totalExp = av.expenses+as.expenses, totalProfit = av.profit+as.profit;
+  const notifs = computeNotifications();
+  return `
+  <div class="page-head">
+    <div><h1 class="page-title">Good morning — here's how the business is doing</h1>
+    <div class="page-sub">Friday, 04 September 2026 · ${propName(ui.property)}</div></div>
+    <div class="flex gap-8">
+      <select id="dash-range" class="btn sm" style="border:1px solid var(--line);">
+        <option>Today</option><option>This Week</option><option>This Month</option><option>Last Month</option><option>This Year</option>
+      </select>
+      <button class="btn primary sm" id="dash-new-booking">+ New Booking</button>
+    </div>
+  </div>
+
+  <div class="section-label">Today</div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="lbl">Check-ins</div><div class="val">${k.checkins}</div></div>
+    <div class="kpi"><div class="lbl">Check-outs</div><div class="val">${k.checkouts}</div></div>
+    <div class="kpi"><div class="lbl">New bookings</div><div class="val">${k.newBookings}</div></div>
+    <div class="kpi"><div class="lbl">Revenue</div><div class="val small">${fmtINR(k.revenue)}</div></div>
+    <div class="kpi"><div class="lbl">Expenses</div><div class="val small">${fmtINR(k.expenses)}</div></div>
+    <div class="kpi"><div class="lbl">Net revenue</div><div class="val small">${fmtINR(k.net)}</div></div>
+    <div class="kpi"><div class="lbl">Pending payments</div><div class="val small" style="color:${k.pending>0?'var(--red)':'inherit'}">${fmtINR(k.pending)}</div></div>
+  </div>
+
+  <div class="section-label">Current status</div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="lbl">Total rooms/units</div><div class="val">${st.total}</div></div>
+    <div class="kpi"><div class="lbl">Available</div><div class="val" style="color:var(--green)">${st.available}</div></div>
+    <div class="kpi"><div class="lbl">Occupied</div><div class="val" style="color:var(--azure)">${st.occupied}</div></div>
+    <div class="kpi"><div class="lbl">Reserved</div><div class="val" style="color:var(--amber)">${st.reserved}</div></div>
+    <div class="kpi"><div class="lbl">Cleaning</div><div class="val">${st.cleaning}</div></div>
+    <div class="kpi"><div class="lbl">Maintenance</div><div class="val" style="color:var(--red)">${st.maintenance}</div></div>
+  </div>
+
+  <div class="section-label">Financial (this month)</div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="lbl">This month's revenue</div><div class="val small">${fmtINR(totalRev)}</div></div>
+    <div class="kpi"><div class="lbl">This month's expenses</div><div class="val small">${fmtINR(totalExp)}</div></div>
+    <div class="kpi"><div class="lbl">OTA commissions</div><div class="val small">${fmtINR(av.otaComm+as.otaComm)}</div></div>
+    <div class="kpi"><div class="lbl">Net profit</div><div class="val small" style="color:${totalProfit>=0?'var(--green)':'var(--red)'}">${fmtINR(totalProfit)}</div></div>
+  </div>
+
+  <div class="grid-2" style="margin-top:24px;">
+    <div class="panel">
+      <div class="panel-head"><h3>Property performance — September 2026</h3></div>
+      <div class="panel-body flush">
+        <div class="table-wrap"><table>
+          <thead><tr><th>Metric</th><th class="text-right">Azurevista</th><th class="text-right">Azure Suite</th><th class="text-right">Total</th></tr></thead>
+          <tbody>
+            <tr><td>Bookings</td><td class="text-right">${av.bookingsCount}</td><td class="text-right">${as.bookingsCount}</td><td class="text-right">${av.bookingsCount+as.bookingsCount}</td></tr>
+            <tr><td>Revenue</td><td class="text-right">${fmtINR(av.revenue)}</td><td class="text-right">${fmtINR(as.revenue)}</td><td class="text-right">${fmtINR(totalRev)}</td></tr>
+            <tr><td>Expenses</td><td class="text-right">${fmtINR(av.expenses)}</td><td class="text-right">${fmtINR(as.expenses)}</td><td class="text-right">${fmtINR(totalExp)}</td></tr>
+            <tr><td>OTA commission</td><td class="text-right">${fmtINR(av.otaComm)}</td><td class="text-right">${fmtINR(as.otaComm)}</td><td class="text-right">${fmtINR(av.otaComm+as.otaComm)}</td></tr>
+            <tr><td>Profit</td><td class="text-right">${fmtINR(av.profit)}</td><td class="text-right">${fmtINR(as.profit)}</td><td class="text-right">${fmtINR(totalProfit)}</td></tr>
+            <tr><td>Occupancy</td><td class="text-right">${av.occPct}%</td><td class="text-right">${as.occPct}%</td><td class="text-right">${Math.round((av.occPct+as.occPct)/2)}%</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Revenue by booking source</h3></div>
+      <div class="panel-body"><canvas id="chart-source" height="200"></canvas></div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-head"><h3>Revenue vs expenses — by property</h3></div>
+      <div class="panel-body"><canvas id="chart-revexp" height="210"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Alerts</h3></div>
+      <div class="panel-body flush">
+        ${notifs.length? notifs.slice(0,6).map(n=>`<div class="notif-item"><div class="t">${esc(n.t)}</div><div class="m">${esc(n.m)}</div></div>`).join('') : `<div class="empty-state" style="padding:24px;"><div class="es-t">All clear</div><div>No pending alerts right now.</div></div>`}
+      </div>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-head"><h3>Azurevista — Gorakhpur</h3><span class="tag-prop azurevista">HOTEL · 8 ROOMS</span></div>
+      <div class="panel-body">
+        <div class="kpi-row" style="grid-template-columns:repeat(2,1fr);">
+          <div class="kpi"><div class="lbl">Occupancy</div><div class="val">${av.occPct}%</div></div>
+          <div class="kpi"><div class="lbl">Revenue</div><div class="val small">${fmtINR(av.revenue)}</div></div>
+          <div class="kpi"><div class="lbl">Expenses</div><div class="val small">${fmtINR(av.expenses)}</div></div>
+          <div class="kpi"><div class="lbl">Profit</div><div class="val small">${fmtINR(av.profit)}</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>Azure Suite — Lucknow</h3><span class="tag-prop azuresuite">2BHK APARTMENT</span></div>
+      <div class="panel-body">
+        <div class="kpi-row" style="grid-template-columns:repeat(2,1fr);">
+          <div class="kpi"><div class="lbl">Occupancy</div><div class="val">${as.occPct}%</div></div>
+          <div class="kpi"><div class="lbl">Revenue</div><div class="val small">${fmtINR(as.revenue)}</div></div>
+          <div class="kpi"><div class="lbl">Expenses</div><div class="val small">${fmtINR(as.expenses)}</div></div>
+          <div class="kpi"><div class="lbl">Profit</div><div class="val small">${fmtINR(as.profit)}</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  `;
+}
+let chartInstances = {};
+function destroyCharts(){ Object.values(chartInstances).forEach(c=>c && c.destroy && c.destroy()); chartInstances={}; }
+function events_dashboard(){
+  const nb = document.getElementById('dash-new-booking');
+  if(nb) nb.onclick = openBookingModal;
+  destroyCharts();
+  const srcCanvas = document.getElementById('chart-source');
+  if(srcCanvas){
+    const bySource = {};
+    scopedBookings().forEach(b=>{ const nights=nightsBetween(b.checkIn,b.checkOut); const gross=nights*b.rate-(b.discount||0); bySource[b.source]=(bySource[b.source]||0)+gross; });
+    chartInstances.source = new Chart(srcCanvas, { type:'doughnut', data:{ labels:Object.keys(bySource), datasets:[{ data:Object.values(bySource), backgroundColor:['#1F5FA8','#0E7C7B','#C97A2B','#2F8F5B','#8A6FB0','#C0392B','#5B6B85','#A5673F'] }] }, options:{ plugins:{ legend:{ position:'bottom', labels:{ font:{size:10.5}, boxWidth:10 } } } } });
+  }
+  const reCanvas = document.getElementById('chart-revexp');
+  if(reCanvas){
+    const av = propStats('azurevista','2026-09-01','2026-09-30'); const as = propStats('azuresuite','2026-09-01','2026-09-30');
+    chartInstances.revexp = new Chart(reCanvas, { type:'bar', data:{ labels:['Azurevista','Azure Suite'], datasets:[
+      {label:'Revenue', data:[av.revenue,as.revenue], backgroundColor:'#1F5FA8'},
+      {label:'Expenses', data:[av.expenses,as.expenses], backgroundColor:'#C97A2B'},
+      {label:'Profit', data:[av.profit,as.profit], backgroundColor:'#2F8F5B'},
+    ]}, options:{ scales:{ y:{ beginAtZero:true, ticks:{ font:{size:10} } }, x:{ ticks:{ font:{size:11} } } }, plugins:{ legend:{ position:'bottom', labels:{font:{size:10.5},boxWidth:10} } } } });
+  }
+}
+
+/* =========================================================
+   VIEW: BOOKINGS
+========================================================= */
+function statusBadge(status){
+  const map = {
+    'reserved':['amber','Reserved'],'confirmed':['blue','Confirmed'],'checked-in':['green','Checked-in'],
+    'checked-out':['grey','Checked-out'],'cancelled':['red','Cancelled'],'no-show':['red','No-show'],
+    'available':['green','Available'],'occupied':['blue','Occupied'],'cleaning':['grey','Cleaning'],
+    'maintenance':['red','Maintenance'],'blocked':['grey','Blocked'],'dirty':['amber','Dirty'],
+    'clean':['teal','Clean'],'inspected':['green','Inspected'],
+    'paid':['green','Paid'],'partial':['amber','Partial'],'unpaid':['red','Unpaid'],
+  };
+  const m = map[status] || ['grey', status];
+  return `<span class="badge ${m[0]}">${m[1]}</span>`;
+}
+function sourceBadge(src){ return `<span class="badge ${OTA_SOURCES.includes(src)?'teal':'blue'}">${esc(src)}</span>`; }
+
+let bookingsFilter = {status:'all', source:'all', q:''};
+function viewBookings(){
+  let bks = scopedBookings();
+  if(bookingsFilter.status!=='all') bks = bks.filter(b=>b.status===bookingsFilter.status);
+  if(bookingsFilter.source!=='all') bks = bks.filter(b=> (bookingsFilter.source==='OTA'? OTA_SOURCES.includes(b.source) : b.source===bookingsFilter.source));
+  if(bookingsFilter.q) bks = bks.filter(b=> (b.guestName+b.id+b.mobile).toLowerCase().includes(bookingsFilter.q.toLowerCase()));
+  bks = bks.slice().sort((a,b)=> b.checkIn.localeCompare(a.checkIn));
+  return `
+  <div class="page-head">
+    <div><h1 class="page-title">Bookings</h1><div class="page-sub">${bks.length} booking${bks.length!==1?'s':''} · ${propName(ui.property)}</div></div>
+    <div class="flex gap-8">
+      <button class="btn danger sm" id="bk-clear-all">Clear All Bookings</button>
+      <button class="btn sm" id="bk-export">Export CSV</button>
+      <button class="btn primary sm" id="bk-new">+ New Booking</button>
+    </div>
+  </div>
+  <div class="panel">
+    <div class="panel-head" style="gap:10px;flex-wrap:wrap;">
+      <div class="flex gap-8" style="flex-wrap:wrap;">
+        <input id="bk-q" placeholder="Search guest, ID, mobile…" value="${esc(bookingsFilter.q)}" style="padding:6px 10px;border:1px solid var(--line);border-radius:3px;font-size:12.5px;width:220px;"/>
+        <select id="bk-status-filter" style="padding:6px 10px;border:1px solid var(--line);border-radius:3px;font-size:12.5px;">
+          <option value="all">All statuses</option>
+          ${['reserved','confirmed','checked-in','checked-out','cancelled','no-show'].map(s=>`<option value="${s}" ${bookingsFilter.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+        <select id="bk-source-filter" style="padding:6px 10px;border:1px solid var(--line);border-radius:3px;font-size:12.5px;">
+          <option value="all">All sources</option><option value="OTA">All OTA</option>
+          ${BOOKING_SOURCES.map(s=>`<option value="${s}" ${bookingsFilter.source===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="panel-body flush table-wrap">
+      <table>
+        <thead><tr><th>Booking</th><th>Property</th><th>Room/Unit</th><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Source</th><th>Status</th><th>Payment</th><th class="text-right">Balance</th><th class="text-right">Action</th></tr></thead>
+        <tbody>
+        ${bks.length? bks.map(b=>`
+          <tr>
+            <td><strong>${b.id}</strong></td>
+            <td><span class="tag-prop ${b.property}">${propName(b.property)}</span></td>
+            <td>${roomLabel(b.roomId)}</td>
+            <td>${esc(b.guestName)}<div class="text-soft" style="font-size:11px;">${esc(b.mobile)}</div></td>
+            <td>${fmtDateShort(b.checkIn)}</td>
+            <td>${fmtDateShort(b.checkOut)}</td>
+            <td>${sourceBadge(b.source)}</td>
+            <td>${statusBadge(b.status)}</td>
+            <td>${statusBadge(b.payment)}</td>
+            <td class="text-right">${fmtINR(bookingBalance(b))}</td>
+            <td class="text-right">
+              <div class="flex gap-4" style="justify-content:flex-end;flex-wrap:nowrap;">
+                <button class="btn sm" data-view-booking="${b.id}">View</button>
+                <button class="btn sm primary" data-food-booking="${b.id}" title="Add Food Bill">🍽️ Food</button>
+                <button class="btn sm" data-bill-booking="${b.id}" title="Generate Bill">Bill 📄</button>
+                <button class="btn sm" data-edit-booking="${b.id}" title="Edit Booking">✏️ Edit</button>
+                <button class="btn sm danger" data-delete-booking="${b.id}" title="Delete Booking">🗑️ Delete</button>
+              </div>
+            </td>
+          </tr>`).join('') : `<tr class="empty-row"><td colspan="11">No bookings match these filters.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+function events_bookings(){
+  document.getElementById('bk-new').onclick = openBookingModal;
+  document.getElementById('bk-export').onclick = ()=> downloadCSV('bookings.csv', scopedBookings().map(b=>({id:b.id,property:b.property,room:roomLabel(b.roomId),guest:b.guestName,mobile:b.mobile,checkIn:b.checkIn,checkOut:b.checkOut,source:b.source,status:b.status,payment:b.payment,balance:bookingBalance(b)})));
+  document.getElementById('bk-q').oninput = (e)=>{ bookingsFilter.q=e.target.value; render(); document.getElementById('bk-q').focus(); const v=document.getElementById('bk-q'); v.setSelectionRange(v.value.length,v.value.length); };
+  document.getElementById('bk-status-filter').onchange = (e)=>{ bookingsFilter.status=e.target.value; render(); };
+  document.getElementById('bk-source-filter').onchange = (e)=>{ bookingsFilter.source=e.target.value; render(); };
+  const clearBtn = document.getElementById('bk-clear-all');
+  if(clearBtn) clearBtn.onclick = () => confirmAction(
+    'Delete all payments, expenses, guest & booking details?',
+    'This will permanently clear all bookings, guests, payments, expenses, invoices, and food bills. Room statuses will reset to available.',
+    () => {
+      clearAllRecords();
+      toast('All payment, expense, guest & booking details deleted');
+      render();
+    }
+  );
+  document.querySelectorAll('[data-view-booking]').forEach(el=> el.onclick = ()=> openBookingDetail(el.dataset.viewBooking));
+  document.querySelectorAll('[data-food-booking]').forEach(el => el.onclick = () => openAddFoodBillModal(el.dataset.foodBooking));
+  document.querySelectorAll('[data-bill-booking]').forEach(el => el.onclick = () => openBookingBillPrint(el.dataset.billBooking));
+  document.querySelectorAll('[data-edit-booking]').forEach(el => el.onclick = () => openEditBookingModal(el.dataset.editBooking));
+  document.querySelectorAll('[data-delete-booking]').forEach(el => el.onclick = () => deleteBooking(el.dataset.deleteBooking));
+}
+
+function availableRoomsForProperty(prop){
+  return prop==='azurevista' ? state.rooms.filter(r=>r.property==='azurevista') : state.units.filter(u=>u.property==='azuresuite');
+}
+function openBookingModal(prefill){
+  prefill = prefill || {};
+  const prop = prefill.property || (ui.property!=='all'?ui.property:'azurevista');
+  const rooms = availableRoomsForProperty(prop);
+  const body = `
+    <div class="form-grid" id="bk-form">
+      <div class="f-field"><label>Property</label><select id="f-property">
+        <option value="azurevista" ${prop==='azurevista'?'selected':''}>Azurevista — Gorakhpur</option>
+        <option value="azuresuite" ${prop==='azuresuite'?'selected':''}>Azure Suite — Lucknow</option>
+      </select></div>
+      <div class="f-field"><label>Room / Unit</label><select id="f-room">${rooms.map(r=>`<option value="${r.id}">${r.property==='azurevista'?'Room '+r.number+' — '+r.type:r.number} (${fmtINR(r.rate)}/night)</option>`).join('')}</select></div>
+      <div class="f-field span2"><label>Guest name</label><input id="f-guestname" placeholder="Full name"/></div>
+      <div class="f-field"><label>Mobile number</label><input id="f-mobile" placeholder="98XXXXXXXX"/></div>
+      <div class="f-field"><label>Email</label><input id="f-email" placeholder="guest@example.com"/></div>
+      <div class="f-field"><label>Adults</label><input id="f-adults" type="number" min="1" value="2"/></div>
+      <div class="f-field"><label>Children</label><input id="f-children" type="number" min="0" value="0"/></div>
+      <div class="f-field"><label>Check-in date</label><input id="f-checkin" type="date" value="${todayStr()}"/></div>
+      <div class="f-field"><label>Check-out date</label><input id="f-checkout" type="date" value="${addDays(todayStr(),1)}"/></div>
+      <div class="f-field"><label>Room/unit rate (₹/night)</label><input id="f-rate" type="number" value="${rooms[0]?rooms[0].rate:0}"/></div>
+      <div class="f-field"><label>Discount (₹)</label><input id="f-discount" type="number" value="0"/></div>
+      <div class="f-field"><label>Advance payment (₹)</label><input id="f-advance" type="number" value="0"/></div>
+      <div class="f-field"><label>Booking source</label><select id="f-source">${BOOKING_SOURCES.map(s=>`<option>${s}</option>`).join('')}</select></div>
+      <div class="f-field span2"><label>Special requests / notes</label><textarea id="f-notes" placeholder="Optional"></textarea></div>
+    </div>
+    <div id="bk-form-err"></div>
+  `;
+  const foot = `<button class="btn" id="bk-cancel">Cancel</button><button class="btn primary" id="bk-save">Save booking</button>`;
+  openModal('New booking', body, foot, true);
+  const roomSel = document.getElementById('f-room'), rateInp = document.getElementById('f-rate'), propSel = document.getElementById('f-property');
+  function refreshRooms(){
+    const rs = availableRoomsForProperty(propSel.value);
+    roomSel.innerHTML = rs.map(r=>`<option value="${r.id}">${r.property==='azurevista'?'Room '+r.number+' — '+r.type:r.number} (${fmtINR(r.rate)}/night)</option>`).join('');
+    if(rs[0]) rateInp.value = rs[0].rate;
+  }
+  propSel.onchange = refreshRooms;
+  roomSel.onchange = ()=>{ const r = rooms.concat(state.rooms,state.units).find(x=>x.id===roomSel.value); if(r) rateInp.value = r.rate; };
+  document.getElementById('bk-cancel').onclick = closeModal;
+  document.getElementById('bk-save').onclick = ()=>{
+    const name = document.getElementById('f-guestname').value.trim();
+    const mobile = document.getElementById('f-mobile').value.trim();
+    const ci = document.getElementById('f-checkin').value, co = document.getElementById('f-checkout').value;
+    const errBox = document.getElementById('bk-form-err');
+    if(!name || !mobile){ errBox.innerHTML = `<div class="err-msg">Guest name and mobile number are required.</div>`; return; }
+    if(new Date(co) <= new Date(ci)){ errBox.innerHTML = `<div class="err-msg">Check-out must be after check-in.</div>`; return; }
+    const roomId = document.getElementById('f-room').value;
+    const conflict = state.bookings.some(b=> b.roomId===roomId && !['cancelled','checked-out','no-show'].includes(b.status) && ci < b.checkOut && co > b.checkIn);
+    if(conflict){ errBox.innerHTML = `<div class="err-msg">This room/unit is already booked for overlapping dates. Choose different dates or a different room.</div>`; return; }
+    let guest = state.guests.find(g=> g.mobile===mobile);
+    if(!guest){ guest = {id:uid('GU'),name,mobile,email:document.getElementById('f-email').value.trim(),address:'',idType:'',idNumber:'',properties:[document.getElementById('f-property').value],totalStays:0,totalSpend:0,outstanding:0}; state.guests.push(guest); }
+    const booking = {
+      id: uid('BK'), property: document.getElementById('f-property').value, roomId, guestId:guest.id, guestName:name, mobile,
+      email: document.getElementById('f-email').value.trim(), adults:+document.getElementById('f-adults').value||1, children:+document.getElementById('f-children').value||0,
+      checkIn:ci, checkInTime:'13:00', checkOut:co, checkOutTime:'11:00', rate:+document.getElementById('f-rate').value||0,
+      discount:+document.getElementById('f-discount').value||0, advance:+document.getElementById('f-advance').value||0,
+      source: document.getElementById('f-source').value, status: ci<=todayStr()?'confirmed':'reserved', payment: (+document.getElementById('f-advance').value>0?'partial':'unpaid'),
+      notes: document.getElementById('f-notes').value.trim(), createdBy: auth.user, createdDate: todayStr(),
+    };
+    state.bookings.push(booking);
+    if(+booking.advance>0){ state.payments.push({id:uid('TXN'),bookingId:booking.id,property:booking.property,amount:+booking.advance,method:'Cash',date:todayStr(),notes:'Advance at booking',addedBy:auth.user}); }
+    const r = roomObj(roomId); if(r && ci===todayStr()) r.status='reserved';
+    logAudit('Booking created', booking.property, booking.id);
+    persist(); closeModal(); toast('Booking '+booking.id+' created'); ui.view='bookings'; render();
+  };
+}
+function logAudit(action, property, record){ state.auditLog.unshift({id:uid('AL'),user:auth.user,action,property,record,date:new Date().toISOString()}); if(state.auditLog.length>200) state.auditLog.pop(); }
+
+function openBookingDetail(id){
+  const b = bookingObj(id); if(!b) return;
+  const charges = bookingTotalCharges(b);
+  const foodBills = bookingFoodBills(b);
+
+  const body = `
+    <div class="grid-2" style="gap:16px;">
+      <div>
+        <div class="section-label" style="margin-top:0;">Guest</div>
+        <div><strong>${esc(b.guestName)}</strong></div>
+        <div class="text-soft">${esc(b.mobile)} · ${esc(b.email||'—')}</div>
+
+        <div class="section-label">Stay</div>
+        <div>${roomLabel(b.roomId)} · ${propName(b.property)}</div>
+        <div class="text-soft">${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)} (${charges.nights} night${charges.nights>1?'s':''})</div>
+        <div class="text-soft">${b.adults} adult(s), ${b.children} child(ren)</div>
+
+        <div class="section-label">Source & status</div>
+        <div class="flex gap-8" style="flex-wrap:wrap;">${sourceBadge(b.source)} ${statusBadge(b.status)} ${statusBadge(b.payment)}</div>
+        ${b.notes? `<div class="section-label">Notes</div><div class="text-soft">${esc(b.notes)}</div>` : ''}
+
+        <!-- Food Bills / Food Section -->
+        <div style="margin-top:16px;padding:12px;background:var(--paper);border:1px solid var(--line);border-radius:4px;">
+          <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <div style="font-weight:600;font-size:13px;color:var(--ink);">🍽️ Food &amp; Room Service Bills</div>
+            <span class="badge blue" style="font-size:11px;">${fmtINR(charges.foodCharges)}</span>
+          </div>
+          ${foodBills.length ? `
+            <div style="max-height:140px;overflow-y:auto;font-size:12px;margin-bottom:8px;">
+              <table style="margin:0;font-size:12px;">
+                <thead><tr><th>Date</th><th>Item / Description</th><th class="text-right">Amount</th><th></th></tr></thead>
+                <tbody>
+                  ${foodBills.map(fb => `
+                    <tr>
+                      <td style="padding:4px 6px;">${fmtDateShort(fb.date)}</td>
+                      <td style="padding:4px 6px;">
+                        <strong>${esc(fb.description || 'Food Bill')}</strong>
+                        ${fb.notes ? `<div class="text-soft" style="font-size:10.5px;">${esc(fb.notes)}</div>` : ''}
+                      </td>
+                      <td class="text-right" style="padding:4px 6px;"><strong>${fmtINR(fb.amount)}</strong></td>
+                      <td class="text-right" style="padding:4px 6px;"><button class="btn sm danger" style="padding:1px 5px;font-size:10px;" data-delete-food="${fb.id}" title="Remove food bill">✕</button></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : `<div class="text-soft" style="font-size:12px;margin-bottom:8px;">No food bills added for this booking yet.</div>`}
+
+          <div class="flex gap-8" style="margin-top:6px;">
+            <button class="btn sm primary" id="bk-sec-add-food">🍽️ Add Food Bill</button>
+            <button class="btn sm" id="bk-sec-add-pay">💳 Add Payment</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label" style="margin-top:0;">Charges &amp; Billing</div>
+        <table><tbody>
+          <tr><td>Room rate × ${charges.nights} night${charges.nights>1?'s':''}</td><td class="text-right">${fmtINR(charges.roomCharges)}</td></tr>
+          <tr><td>Food / Room Service Bill</td><td class="text-right" style="color:${charges.foodCharges>0?'var(--azure)':'inherit'}">${charges.foodCharges > 0 ? '+'+fmtINR(charges.foodCharges) : fmtINR(0)}</td></tr>
+          <tr><td>Discount</td><td class="text-right">-${fmtINR(charges.discount)}</td></tr>
+          <tr><td>Tax (${charges.taxPct}%)</td><td class="text-right">${fmtINR(charges.tax)}</td></tr>
+          <tr><td><strong>Total Charges</strong></td><td class="text-right"><strong>${fmtINR(charges.total)}</strong></td></tr>
+          <tr><td>Total Paid</td><td class="text-right" style="color:var(--green)">${fmtINR(charges.paid)}</td></tr>
+          <tr><td><strong>Balance Due</strong></td><td class="text-right"><strong style="color:${charges.balance>0?'var(--red)':'var(--green)'}">${fmtINR(charges.balance)}</strong></td></tr>
+        </tbody></table>
+
+        ${(state.payments.filter(p=>p.bookingId===b.id).length) ? `
+          <div class="section-label" style="margin-top:14px;">Payments Received</div>
+          <div style="font-size:12px;">
+            ${state.payments.filter(p=>p.bookingId===b.id).map(p=>`
+              <div class="flex" style="justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--line);">
+                <div><span>${fmtDateShort(p.date)}</span> · <span class="text-soft">${esc(p.method)}</span></div>
+                <div><strong style="color:var(--green)">${fmtINR(p.amount)}</strong></div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+    </div>
+  `;
+
+  const actions = [];
+  if(['reserved','confirmed'].includes(b.status)) actions.push(`<button class="btn primary" id="bk-do-checkin">Start check-in</button>`);
+  if(b.status==='checked-in') actions.push(`<button class="btn primary" id="bk-do-checkout">Start check-out</button>`);
+  if(!['cancelled','checked-out','no-show'].includes(b.status)) actions.push(`<button class="btn danger" id="bk-do-cancel">Cancel booking</button>`);
+
+  actions.push(`<button class="btn primary" id="bk-add-food-bill">🍽️ Add Food Bill</button>`);
+  actions.push(`<button class="btn" id="bk-add-payment">💳 Add Payment</button>`);
+  actions.push(`<button class="btn" id="bk-generate-bill">📄 Generate Bill</button>`);
+  actions.push(`<button class="btn" id="bk-edit-booking">✏️ Edit</button>`);
+  actions.push(`<button class="btn danger" id="bk-delete-booking">🗑️ Delete</button>`);
+
+  const foot = `<button class="btn ghost" id="bk-detail-close">Close</button>${actions.join('')}`;
+  openModal('Booking '+b.id, body, foot, true);
+
+  document.getElementById('bk-detail-close').onclick = closeModal;
+
+  const secFood = document.getElementById('bk-sec-add-food');
+  if(secFood) secFood.onclick = () => openAddFoodBillModal(b.id);
+  const secPay = document.getElementById('bk-sec-add-pay');
+  if(secPay) secPay.onclick = () => openPaymentModal(b.id);
+
+  const addFoodBtn = document.getElementById('bk-add-food-bill');
+  if(addFoodBtn) addFoodBtn.onclick = () => openAddFoodBillModal(b.id);
+  const payBtn = document.getElementById('bk-add-payment');
+  if(payBtn) payBtn.onclick = () => openPaymentModal(b.id);
+  const genBillBtn = document.getElementById('bk-generate-bill');
+  if(genBillBtn) genBillBtn.onclick = () => openBookingBillPrint(b.id);
+  const editBtn = document.getElementById('bk-edit-booking');
+  if(editBtn) editBtn.onclick = () => openEditBookingModal(b.id);
+  const delBtn = document.getElementById('bk-delete-booking');
+  if(delBtn) delBtn.onclick = () => deleteBooking(b.id);
+
+  document.querySelectorAll('[data-delete-food]').forEach(el => {
+    el.onclick = () => {
+      confirmAction('Remove this food bill?', 'The food charge will be deleted from this booking.', () => {
+        state.foodBills = (state.foodBills || []).filter(f => f.id !== el.dataset.deleteFood);
+        if(bookingBalance(b)<=0) b.payment='paid'; else b.payment='partial';
+        logAudit('Food bill removed', b.property, b.id);
+        persist(); toast('Food bill removed');
+        openBookingDetail(b.id);
+      });
+    };
+  });
+
+  const ci = document.getElementById('bk-do-checkin'); if(ci) ci.onclick = ()=>{ closeModal(); ui.view='checkinout'; ui.selectedId=b.id; ui.workflow='checkin'; ui.step=0; render(); };
+  const co = document.getElementById('bk-do-checkout'); if(co) co.onclick = ()=>{ closeModal(); ui.view='checkinout'; ui.selectedId=b.id; ui.workflow='checkout'; ui.step=0; render(); };
+  const cancel = document.getElementById('bk-do-cancel'); if(cancel) cancel.onclick = ()=> confirmAction('Cancel this booking?', 'The room/unit will be released.', ()=>{
+    b.status='cancelled'; const r=roomObj(b.roomId); if(r && r.status!=='occupied') r.status='available'; logAudit('Booking cancelled', b.property, b.id); persist(); closeModal(); toast('Booking cancelled'); render();
+  });
+}
+
+const PRESET_FOOD_ITEMS = [
+  { name: 'Dinner Thali (Veg)', price: 180 },
+  { name: 'Dinner Thali (Non-Veg)', price: 250 },
+  { name: 'Breakfast & Tea', price: 120 },
+  { name: 'Special Tea / Coffee', price: 30 },
+  { name: 'Snacks / Starters', price: 150 },
+  { name: 'Mineral Water (1L)', price: 20 },
+  { name: 'Custom Food Charge', price: 0 }
+];
+
+function openAddFoodBillModal(bookingId){
+  const openBks = state.bookings.filter(b=>!['cancelled','checked-out','no-show'].includes(b.status));
+  const defaultBooking = state.bookings.find(b=>b.id===bookingId) || openBks[0] || state.bookings[0];
+
+  const body = `
+    <div class="form-grid">
+      <div class="f-field span2">
+        <label>Select Booking</label>
+        <select id="fb-booking">
+          ${openBks.map(b => `<option value="${b.id}" ${b.id===(defaultBooking?defaultBooking.id:'')?'selected':''}>${b.id} — ${esc(b.guestName)} (${roomLabel(b.roomId)})</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="f-field span2">
+        <label>Quick Preset Food Item</label>
+        <select id="fb-preset">
+          <option value="">-- Choose preset or enter custom item below --</option>
+          ${PRESET_FOOD_ITEMS.map(i => `<option value="${i.name}" data-price="${i.price}">${i.name} ${i.price > 0 ? '(₹' + i.price + ')' : ''}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="f-field span2">
+        <label>Food Item / Order Description *</label>
+        <input id="fb-desc" placeholder="e.g. Dinner Thali x 2, Tea x 2" value="Dinner Thali"/>
+      </div>
+
+      <div class="f-field">
+        <label>Quantity</label>
+        <input id="fb-qty" type="number" min="1" value="1"/>
+      </div>
+
+      <div class="f-field">
+        <label>Rate / Unit Price (₹)</label>
+        <input id="fb-price" type="number" min="0" value="200"/>
+      </div>
+
+      <div class="f-field">
+        <label>Total Food Bill Amount (₹) *</label>
+        <input id="fb-amount" type="number" min="1" value="200" style="font-weight:700;color:var(--azure);"/>
+      </div>
+
+      <div class="f-field">
+        <label>Date</label>
+        <input id="fb-date" type="date" value="${todayStr()}"/>
+      </div>
+
+      <div class="f-field span2">
+        <label>Notes / Room Service Details</label>
+        <input id="fb-notes" placeholder="e.g. Delivered to Room 101 at 8:30 PM"/>
+      </div>
+    </div>
+    <div id="fb-err"></div>
+  `;
+
+  const foot = `
+    <button class="btn" id="fb-cancel">Cancel</button>
+    <button class="btn primary" id="fb-save">🍽️ Save &amp; Add Food Bill</button>
+  `;
+
+  openModal('Add Food Bill for Booking', body, foot);
+
+  const presetSel = document.getElementById('fb-preset');
+  const descInp = document.getElementById('fb-desc');
+  const qtyInp = document.getElementById('fb-qty');
+  const priceInp = document.getElementById('fb-price');
+  const amountInp = document.getElementById('fb-amount');
+
+  function updateFoodTotal(){
+    const q = Math.max(1, +qtyInp.value || 1);
+    const p = Math.max(0, +priceInp.value || 0);
+    amountInp.value = q * p;
+  }
+
+  presetSel.onchange = () => {
+    const opt = presetSel.options[presetSel.selectedIndex];
+    if(presetSel.value){
+      descInp.value = presetSel.value;
+      const price = +opt.dataset.price || 0;
+      if(price > 0){
+        priceInp.value = price;
+        updateFoodTotal();
+      }
+    }
+  };
+
+  qtyInp.oninput = updateFoodTotal;
+  priceInp.oninput = updateFoodTotal;
+
+  document.getElementById('fb-cancel').onclick = closeModal;
+
+  document.getElementById('fb-save').onclick = () => {
+    const bId = document.getElementById('fb-booking').value;
+    const b = bookingObj(bId);
+    if(!b){
+      document.getElementById('fb-err').innerHTML = `<div class="err-msg">Select a valid booking.</div>`;
+      return;
+    }
+    const desc = descInp.value.trim();
+    const amount = +amountInp.value;
+    if(!desc){
+      document.getElementById('fb-err').innerHTML = `<div class="err-msg">Enter food item / order description.</div>`;
+      return;
+    }
+    if(!amount || amount <= 0){
+      document.getElementById('fb-err').innerHTML = `<div class="err-msg">Enter a valid bill amount.</div>`;
+      return;
+    }
+
+    if(!state.foodBills) state.foodBills = [];
+
+    const newFoodBill = {
+      id: uid('FB'),
+      bookingId: bId,
+      property: b.property,
+      description: desc,
+      quantity: +qtyInp.value || 1,
+      unitPrice: +priceInp.value || amount,
+      amount,
+      date: document.getElementById('fb-date').value || todayStr(),
+      notes: document.getElementById('fb-notes').value.trim(),
+      addedBy: auth.user
+    };
+
+    state.foodBills.push(newFoodBill);
+
+    if(bookingBalance(b) <= 0) b.payment = 'paid';
+    else b.payment = 'partial';
+
+    logAudit('Food bill added', b.property, bId);
+    persist();
+    closeModal();
+    toast(`Food bill of ${fmtINR(amount)} added to booking ${bId}`);
+    render();
+    openBookingDetail(bId);
+  };
+}
+
+function openBookingBillPrint(bookingId){
+  const b = bookingObj(bookingId);
+  if(!b) return;
+  const prop = state.properties[b.property] || state.properties['azurevista'];
+  const charges = bookingTotalCharges(b);
+  const foodBills = bookingFoodBills(b);
+  const pays = state.payments.filter(p => p.bookingId === b.id);
+
+  const body = `
+    <div style="font-family:'Inter',sans-serif;color:var(--ink);padding:6px;">
+      <!-- Header -->
+      <div class="flex" style="justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--azure);padding-bottom:12px;margin-bottom:16px;">
+        <div>
+          <div style="font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:var(--azure-deep);">${esc(prop.name.toUpperCase())}</div>
+          <div class="text-soft" style="font-size:12px;">${esc(prop.location)}</div>
+          <div class="text-soft" style="font-size:11.5px;margin-top:2px;">GSTIN: <strong>${esc(prop.gstin)}</strong></div>
+        </div>
+        <div class="text-right">
+          <div style="font-size:16px;font-weight:700;color:var(--azure);">GUEST BILL & INVOICE</div>
+          <div style="font-size:12px;margin-top:4px;">Booking Ref: <strong>${b.id}</strong></div>
+          <div class="text-soft" style="font-size:11.5px;">Date: ${fmtDate(todayStr())}</div>
+        </div>
+      </div>
+
+      <!-- Guest & Stay Info -->
+      <div class="grid-2" style="background:var(--paper);padding:12px;border-radius:4px;border:1px solid var(--line);margin-bottom:16px;">
+        <div>
+          <div class="text-soft" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Guest Details</div>
+          <div style="font-size:14px;font-weight:600;margin-top:2px;">${esc(b.guestName)}</div>
+          <div class="text-soft" style="font-size:12px;">Mobile: ${esc(b.mobile)}</div>
+          ${b.email ? `<div class="text-soft" style="font-size:12px;">Email: ${esc(b.email)}</div>` : ''}
+        </div>
+        <div>
+          <div class="text-soft" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Stay Details</div>
+          <div style="font-size:13px;font-weight:600;margin-top:2px;">Room/Unit: ${roomLabel(b.roomId)}</div>
+          <div class="text-soft" style="font-size:11.5px;">Check-in: ${fmtDate(b.checkIn)}</div>
+          <div class="text-soft" style="font-size:11.5px;">Check-out: ${fmtDate(b.checkOut)} (${charges.nights} night${charges.nights>1?'s':''})</div>
+        </div>
+      </div>
+
+      <!-- Itemized Bill Table -->
+      <div class="section-label" style="margin-bottom:6px;">Itemized Charges</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Description / Item</th>
+            <th class="text-right">Rate</th>
+            <th class="text-right">Qty / Nights</th>
+            <th class="text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Accommodation — ${roomLabel(b.roomId)}</td>
+            <td class="text-right">${fmtINR(b.rate)}</td>
+            <td class="text-right">${charges.nights}</td>
+            <td class="text-right">${fmtINR(charges.roomCharges)}</td>
+          </tr>
+          ${foodBills.map(fb => `
+            <tr>
+              <td>🍽️ Food: ${esc(fb.description)} <span class="text-soft">(${fmtDateShort(fb.date)})</span></td>
+              <td class="text-right">${fmtINR(fb.unitPrice || fb.amount)}</td>
+              <td class="text-right">${fb.quantity || 1}</td>
+              <td class="text-right">${fmtINR(fb.amount)}</td>
+            </tr>
+          `).join('')}
+          ${charges.discount ? `
+            <tr>
+              <td>Discount Applied</td>
+              <td></td>
+              <td></td>
+              <td class="text-right" style="color:var(--green)">-${fmtINR(charges.discount)}</td>
+            </tr>
+          ` : ''}
+        </tbody>
+      </table>
+
+      <table style="margin-top:12px;background:var(--paper);border-top:1px solid var(--line);">
+        <tbody>
+          <tr>
+            <td>Subtotal Charges</td>
+            <td class="text-right">${fmtINR(charges.gross)}</td>
+          </tr>
+          <tr>
+            <td>GST (${charges.taxPct}%)</td>
+            <td class="text-right">${fmtINR(charges.tax)}</td>
+          </tr>
+          <tr>
+            <td><strong>Grand Total</strong></td>
+            <td class="text-right"><strong>${fmtINR(charges.total)}</strong></td>
+          </tr>
+          <tr>
+            <td style="color:var(--green);">Total Amount Paid</td>
+            <td class="text-right" style="color:var(--green);">${fmtINR(charges.paid)}</td>
+          </tr>
+          <tr style="border-top:1.5px solid var(--line);">
+            <td><strong style="font-size:14px;color:${charges.balance>0?'var(--red)':'var(--green)'}">Balance Due</strong></td>
+            <td class="text-right"><strong style="font-size:14px;color:${charges.balance>0?'var(--red)':'var(--green)'}">${fmtINR(charges.balance)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      ${pays.length ? `
+        <div class="section-label" style="margin-top:14px;">Payments Received History</div>
+        <table style="font-size:12px;">
+          <thead><tr><th>Txn ID</th><th>Date</th><th>Method</th><th class="text-right">Amount</th></tr></thead>
+          <tbody>
+            ${pays.map(p => `
+              <tr>
+                <td>${p.id}</td>
+                <td>${fmtDateShort(p.date)}</td>
+                <td>${esc(p.method)} ${p.notes?`(${esc(p.notes)})`:''}</td>
+                <td class="text-right" style="color:var(--green);"><strong>${fmtINR(p.amount)}</strong></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      ` : ''}
+
+      <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div style="font-size:11px;color:var(--ink-soft);max-width:300px;">
+          ${esc(state.settings.invoiceFooter)}
+        </div>
+        <div class="text-right" style="font-size:12px;">
+          <div style="border-bottom:1px solid var(--line);width:160px;margin-bottom:4px;"></div>
+          <div style="font-weight:600;">Authorized Signatory</div>
+          <div class="text-soft" style="font-size:10.5px;">${esc(prop.name)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const foot = `
+    <button class="btn" id="bprint-close">Close</button>
+    <button class="btn primary" id="bprint-print">🖨️ Print / Save PDF</button>
+  `;
+
+  openModal('Bill & Invoice — ' + b.id, body, foot, true);
+  document.getElementById('bprint-close').onclick = closeModal;
+  document.getElementById('bprint-print').onclick = () => window.print();
+}
+
+function openEditBookingModal(bookingId){
+  const b = bookingObj(bookingId);
+  if(!b) return;
+  const prop = b.property;
+  const rooms = availableRoomsForProperty(prop);
+
+  const body = `
+    <div class="form-grid">
+      <div class="f-field span2"><label>Guest name</label><input id="eb-guestname" value="${esc(b.guestName)}"/></div>
+      <div class="f-field"><label>Mobile number</label><input id="eb-mobile" value="${esc(b.mobile)}"/></div>
+      <div class="f-field"><label>Email</label><input id="eb-email" value="${esc(b.email||'')}"/></div>
+      <div class="f-field"><label>Room / Unit</label><select id="eb-room">${rooms.map(r=>`<option value="${r.id}" ${r.id===b.roomId?'selected':''}>${r.property==='azurevista'?'Room '+r.number+' — '+r.type:r.number} (${fmtINR(r.rate)}/night)</option>`).join('')}</select></div>
+      <div class="f-field"><label>Rate (₹/night)</label><input id="eb-rate" type="number" value="${b.rate}"/></div>
+      <div class="f-field"><label>Check-in date</label><input id="eb-checkin" type="date" value="${b.checkIn}"/></div>
+      <div class="f-field"><label>Check-out date</label><input id="eb-checkout" type="date" value="${b.checkOut}"/></div>
+      <div class="f-field"><label>Discount (₹)</label><input id="eb-discount" type="number" value="${b.discount||0}"/></div>
+      <div class="f-field"><label>Booking source</label><select id="eb-source">${BOOKING_SOURCES.map(s=>`<option ${s===b.source?'selected':''}>${s}</option>`).join('')}</select></div>
+      <div class="f-field span2"><label>Notes</label><textarea id="eb-notes">${esc(b.notes||'')}</textarea></div>
+    </div>
+    <div id="eb-err"></div>
+  `;
+
+  const foot = `<button class="btn" id="eb-cancel">Cancel</button><button class="btn primary" id="eb-save">Save changes</button>`;
+  openModal('Edit booking ' + b.id, body, foot, true);
+
+  document.getElementById('eb-cancel').onclick = closeModal;
+  document.getElementById('eb-save').onclick = () => {
+    const name = document.getElementById('eb-guestname').value.trim();
+    const mobile = document.getElementById('eb-mobile').value.trim();
+    const ci = document.getElementById('eb-checkin').value;
+    const co = document.getElementById('eb-checkout').value;
+    if(!name || !mobile){
+      document.getElementById('eb-err').innerHTML = `<div class="err-msg">Guest name and mobile are required.</div>`;
+      return;
+    }
+    if(new Date(co) <= new Date(ci)){
+      document.getElementById('eb-err').innerHTML = `<div class="err-msg">Check-out must be after check-in.</div>`;
+      return;
+    }
+
+    b.guestName = name;
+    b.mobile = mobile;
+    b.email = document.getElementById('eb-email').value.trim();
+    b.roomId = document.getElementById('eb-room').value;
+    b.rate = +document.getElementById('eb-rate').value || b.rate;
+    b.checkIn = ci;
+    b.checkOut = co;
+    b.discount = +document.getElementById('eb-discount').value || 0;
+    b.source = document.getElementById('eb-source').value;
+    b.notes = document.getElementById('eb-notes').value.trim();
+
+    if(bookingBalance(b) <= 0) b.payment = 'paid';
+    else b.payment = 'partial';
+
+    logAudit('Booking edited', b.property, b.id);
+    persist();
+    closeModal();
+    toast('Booking ' + b.id + ' updated');
+    render();
+    openBookingDetail(b.id);
+  };
+}
+
+function deleteBooking(bookingId){
+  const b = bookingObj(bookingId);
+  if(!b) return;
+  confirmAction(`Delete booking ${b.id}?`, `Are you sure you want to delete this booking for ${b.guestName}? This action cannot be undone.`, () => {
+    state.bookings = state.bookings.filter(x => x.id !== bookingId);
+    state.foodBills = (state.foodBills || []).filter(x => x.bookingId !== bookingId);
+    const r = roomObj(b.roomId);
+    if(r && r.status === 'occupied' && !state.bookings.some(x => x.roomId === b.roomId && x.status === 'checked-in')){
+      r.status = 'available';
+    }
+    logAudit('Booking deleted', b.property, b.id);
+    persist();
+    closeModal();
+    toast(`Booking ${b.id} deleted`);
+    render();
+  });
+}
+
+function confirmAction(title, msg, onConfirm){
+  const body = `<div>${esc(msg)}</div>`;
+  const foot = `<button class="btn" id="ca-cancel">Cancel</button><button class="btn danger" id="ca-confirm">Confirm</button>`;
+  openModal(title, body, foot);
+  document.getElementById('ca-cancel').onclick = closeModal;
+  document.getElementById('ca-confirm').onclick = onConfirm;
+}
+
+/* =========================================================
+   VIEW: CALENDAR
+========================================================= */
+let calMonth = 8; // 0-indexed: Sept 2026
+let calYear = 2026;
+function viewCalendar(){
+  const first = new Date(calYear, calMonth, 1);
+  const startDow = first.getDay();
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  const prevDays = new Date(calYear, calMonth, 0).getDate();
+  const cells = [];
+  for(let i=startDow-1;i>=0;i--) cells.push({d:prevDays-i, faded:true});
+  for(let d=1; d<=daysInMonth; d++) cells.push({d, faded:false, dateStr: `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`});
+  while(cells.length%7!==0) cells.push({d:cells.length, faded:true});
+  const bks = scopedBookings().filter(b=>b.status!=='cancelled');
+  const monthLabel = first.toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+  return `
+  <div class="page-head">
+    <div><h1 class="page-title">Central booking calendar</h1><div class="page-sub">${propName(ui.property)} · month view</div></div>
+    <div class="flex gap-8">
+      <button class="btn sm" id="cal-prev">‹ Prev</button>
+      <div class="btn sm" style="min-width:150px;justify-content:center;">${monthLabel}</div>
+      <button class="btn sm" id="cal-next">Next ›</button>
+      <button class="btn primary sm" id="cal-new">+ New Booking</button>
+    </div>
+  </div>
+  <div class="flex gap-14" style="margin-bottom:12px;font-size:12px;">
+    <span class="flex gap-6"><span style="width:9px;height:9px;background:var(--azure);display:inline-block;border-radius:2px;"></span> Azurevista</span>
+    <span class="flex gap-6"><span style="width:9px;height:9px;background:var(--teal);display:inline-block;border-radius:2px;"></span> Azure Suite</span>
+  </div>
+  <div class="cal-grid">
+    ${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<div class="cal-dow">${d}</div>`).join('')}
+    ${cells.map(c=>{
+      if(c.faded) return `<div class="cal-cell faded"><div class="d-num">${c.d}</div></div>`;
+      const dayBookings = bks.filter(b=> c.dateStr>=b.checkIn && c.dateStr<b.checkOut);
+      const isToday = c.dateStr===todayStr();
+      return `<div class="cal-cell ${isToday?'today':''}">
+        <div class="d-num">${c.d}</div>
+        ${dayBookings.slice(0,3).map(b=>`<div class="cal-chip ${b.property==='azurevista'?'av':'as'}" data-view-booking="${b.id}" title="${esc(b.guestName)}">${esc(b.guestName)} · ${roomLabel(b.roomId)}</div>`).join('')}
+        ${dayBookings.length>3?`<div class="text-soft" style="font-size:10px;">+${dayBookings.length-3} more</div>`:''}
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+function events_calendar(){
+  document.getElementById('cal-prev').onclick = ()=>{ calMonth--; if(calMonth<0){calMonth=11;calYear--;} render(); };
+  document.getElementById('cal-next').onclick = ()=>{ calMonth++; if(calMonth>11){calMonth=0;calYear++;} render(); };
+  document.getElementById('cal-new').onclick = openBookingModal;
+  document.querySelectorAll('[data-view-booking]').forEach(el=> el.onclick = ()=> openBookingDetail(el.dataset.viewBooking));
+}
+
+/* =========================================================
+   VIEW: PROPERTIES
+========================================================= */
+function viewProperties(){
+  const props = Object.values(state.properties);
+  return `
+  <div class="page-head"><div><h1 class="page-title">Properties</h1><div class="page-sub">Manage every property from one place</div></div>
+    <button class="btn primary sm" id="prop-add">+ Add Property</button></div>
+  <div class="grid-2">
+    ${props.map(p=>{
+      const st = propStats(p.id,'2026-09-01','2026-09-30');
+      const unitCount = p.id==='azurevista'? state.rooms.filter(r=>r.property===p.id).length : state.units.filter(u=>u.property===p.id).length;
+      return `<div class="panel">
+        <div class="panel-head"><h3>${esc(p.name)}</h3><span class="tag-prop ${p.id}">${p.type.toUpperCase()}</span></div>
+        <div class="panel-body">
+          <div class="text-soft" style="margin-bottom:10px;">${esc(p.location)}</div>
+          <div class="kpi-row" style="grid-template-columns:repeat(2,1fr);margin-bottom:10px;">
+            <div class="kpi"><div class="lbl">${p.id==='azurevista'?'Rooms':'Units'}</div><div class="val">${unitCount}</div></div>
+            <div class="kpi"><div class="lbl">Occupancy</div><div class="val">${st.occPct}%</div></div>
+            <div class="kpi"><div class="lbl">Revenue (Sep)</div><div class="val small">${fmtINR(st.revenue)}</div></div>
+            <div class="kpi"><div class="lbl">Profit (Sep)</div><div class="val small">${fmtINR(st.profit)}</div></div>
+          </div>
+          <div class="flex gap-8">
+            <button class="btn sm" data-goto-rooms="${p.id}">View rooms/units</button>
+            <button class="btn sm" data-goto-bookings="${p.id}">View bookings</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+function events_properties(){
+  const add = document.getElementById('prop-add');
+  if(add) add.onclick = ()=> toast('Adding a new property is available in Settings → Property Settings in the full build.');
+  document.querySelectorAll('[data-goto-rooms]').forEach(el=> el.onclick = ()=>{ ui.property = el.dataset.gotoRooms; ui.view='rooms'; render(); });
+  document.querySelectorAll('[data-goto-bookings]').forEach(el=> el.onclick = ()=>{ ui.property = el.dataset.gotoBookings; ui.view='bookings'; render(); });
+}
+
+/* =========================================================
+   VIEW: ROOMS / UNITS
+========================================================= */
+const ROOM_STATUSES = ['available','reserved','occupied','cleaning','clean','maintenance','blocked'];
+function viewRooms(){
+  const items = scopedRooms();
+  return `
+  <div class="page-head"><div><h1 class="page-title">Rooms &amp; Units</h1><div class="page-sub">${propName(ui.property)}</div></div></div>
+  <div class="room-grid">
+  ${items.map(r=>{
+    const active = state.bookings.find(b=> b.roomId===r.id && b.status==='checked-in');
+    const upcoming = state.bookings.find(b=> b.roomId===r.id && ['reserved','confirmed'].includes(b.status) && b.checkIn>=todayStr());
+    const disp = active||upcoming;
+    return `<div class="room-card">
+      <div class="rc-bar st-${r.status}"></div>
+      <div class="rc-top"><span class="rc-num">${r.property==='azurevista'?'Room '+r.number:r.number}</span>${statusBadge(r.status)}</div>
+      <div class="rc-body">
+        <div>Type: <strong>${esc(r.type)}</strong></div>
+        <div>Rate: <strong>${fmtINR(r.rate)}/night</strong></div>
+        ${disp? `<div>Guest: <strong>${esc(disp.guestName)}</strong></div><div>Stay: <strong>${fmtDateShort(disp.checkIn)} → ${fmtDateShort(disp.checkOut)}</strong></div><div>Source: <strong>${esc(disp.source)}</strong></div><div>Payment: ${statusBadge(disp.payment)}</div>` : `<div class="text-soft">No current guest</div>`}
+      </div>
+      <div class="rc-foot">
+        <select data-room-status="${r.id}" class="btn sm" style="border:1px solid var(--line);">
+          ${ROOM_STATUSES.map(s=>`<option value="${s}" ${r.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+        ${disp?`<button class="btn sm" data-view-booking="${disp.id}">View booking</button>`:`<button class="btn sm" data-quick-book="${r.id}">Book</button>`}
+      </div>
+    </div>`;
+  }).join('')}
+  </div>`;
+}
+function events_rooms(){
+  document.querySelectorAll('[data-room-status]').forEach(el=> el.onchange = ()=>{
+    const r = roomObj(el.dataset.roomStatus); r.status = el.value; logAudit('Room status changed', r.property, r.number+' → '+el.value); persist(); toast('Status updated'); render();
+  });
+  document.querySelectorAll('[data-view-booking]').forEach(el=> el.onclick = ()=> openBookingDetail(el.dataset.viewBooking));
+  document.querySelectorAll('[data-quick-book]').forEach(el=> el.onclick = ()=>{ const r = roomObj(el.dataset.quickBook); openBookingModal({property:r.property}); });
+}
+
+/* =========================================================
+   VIEW: GUESTS
+========================================================= */
+let guestQuery = '';
+function viewGuests(){
+  let gs = scopedGuests();
+  if(guestQuery) gs = gs.filter(g=> (g.name+g.mobile+g.id+g.email).toLowerCase().includes(guestQuery.toLowerCase()));
+  return `
+  <div class="page-head"><div><h1 class="page-title">Guests</h1><div class="page-sub">${gs.length} guest${gs.length!==1?'s':''} · ${propName(ui.property)}</div></div>
+    <button class="btn sm" id="guest-export">Export CSV</button></div>
+  <div class="panel">
+    <div class="panel-head"><input id="guest-q" placeholder="Search by name, mobile, booking ID, email…" value="${esc(guestQuery)}" style="padding:6px 10px;border:1px solid var(--line);border-radius:3px;font-size:12.5px;width:280px;"/></div>
+    <div class="panel-body flush table-wrap">
+      <table><thead><tr><th>Guest</th><th>Mobile</th><th>Properties visited</th><th class="text-right">Total stays</th><th class="text-right">Total spend</th><th class="text-right">Outstanding</th><th></th></tr></thead>
+      <tbody>
+      ${gs.length? gs.map(g=>`<tr>
+        <td><strong>${esc(g.name)}</strong><div class="text-soft" style="font-size:11px;">${g.id}</div></td>
+        <td>${esc(g.mobile)}</td>
+        <td>${g.properties.map(p=>`<span class="tag-prop ${p}">${propName(p)}</span>`).join(' ')}</td>
+        <td class="text-right">${g.totalStays}</td>
+        <td class="text-right">${fmtINR(g.totalSpend)}</td>
+        <td class="text-right" style="color:${g.outstanding>0?'var(--red)':'inherit'}">${fmtINR(g.outstanding)}</td>
+        <td><button class="btn sm" data-view-guest="${g.id}">View</button></td>
+      </tr>`).join('') : `<tr class="empty-row"><td colspan="7">No guests found.</td></tr>`}
+      </tbody></table>
+    </div>
+  </div>`;
+}
+function events_guests(){
+  document.getElementById('guest-q').oninput = (e)=>{ guestQuery=e.target.value; render(); const v=document.getElementById('guest-q'); v.focus(); v.setSelectionRange(v.value.length,v.value.length); };
+  document.getElementById('guest-export').onclick = ()=> downloadCSV('guests.csv', scopedGuests().map(g=>({id:g.id,name:g.name,mobile:g.mobile,email:g.email,stays:g.totalStays,spend:g.totalSpend,outstanding:g.outstanding})));
+  document.querySelectorAll('[data-view-guest]').forEach(el=> el.onclick = ()=> openGuestProfile(el.dataset.viewGuest));
+}
+function openGuestProfile(id){
+  const g = guestObj(id); if(!g) return;
+  const bks = state.bookings.filter(b=>b.guestId===id).sort((a,b)=>b.checkIn.localeCompare(a.checkIn));
+  const body = `
+    <div class="grid-2">
+      <div>
+        <div class="section-label" style="margin-top:0;">Contact</div>
+        <div>${esc(g.mobile)}</div><div class="text-soft">${esc(g.email||'—')}</div><div class="text-soft">${esc(g.address||'—')}</div>
+        <div class="section-label">ID</div>
+        <div>${esc(g.idType||'—')} ${esc(g.idNumber||'')}</div>
+      </div>
+      <div>
+        <div class="section-label" style="margin-top:0;">Summary</div>
+        <div>Total stays: <strong>${g.totalStays}</strong></div>
+        <div>Total spend: <strong>${fmtINR(g.totalSpend)}</strong></div>
+        <div>Outstanding: <strong style="color:${g.outstanding>0?'var(--red)':'inherit'}">${fmtINR(g.outstanding)}</strong></div>
+      </div>
+    </div>
+    <div class="section-label">Booking history</div>
+    <div class="table-wrap"><table><thead><tr><th>Booking</th><th>Property</th><th>Dates</th><th>Status</th></tr></thead>
+    <tbody>${bks.length? bks.map(b=>`<tr><td>${b.id}</td><td><span class="tag-prop ${b.property}">${propName(b.property)}</span></td><td>${fmtDateShort(b.checkIn)} → ${fmtDateShort(b.checkOut)}</td><td>${statusBadge(b.status)}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="4">No bookings yet.</td></tr>`}</tbody></table></div>
+  `;
+  openModal(g.name, body, `<button class="btn" id="gp-close">Close</button>`, true);
+  document.getElementById('gp-close').onclick = closeModal;
+}
+
+/* =========================================================
+   VIEW: CHECK-IN / CHECK-OUT
+========================================================= */
+function viewCheckInOut(){
+  const upcoming = scopedBookings().filter(b=>['reserved','confirmed'].includes(b.status)).sort((a,b)=>a.checkIn.localeCompare(b.checkIn));
+  const inhouse = scopedBookings().filter(b=>b.status==='checked-in').sort((a,b)=>a.checkOut.localeCompare(b.checkOut));
+  if(ui.selectedId && ui.workflow){ return renderWorkflow(); }
+  return `
+  <div class="page-head"><div><h1 class="page-title">Check-in / Check-out</h1><div class="page-sub">${propName(ui.property)}</div></div></div>
+  <div class="grid-2">
+    <div class="panel">
+      <div class="panel-head"><h3>Awaiting check-in</h3></div>
+      <div class="panel-body flush table-wrap">
+        <table><thead><tr><th>Guest</th><th>Room/Unit</th><th>Check-in</th><th></th></tr></thead>
+        <tbody>${upcoming.length? upcoming.map(b=>`<tr><td>${esc(b.guestName)}</td><td>${roomLabel(b.roomId)}</td><td>${fmtDateShort(b.checkIn)}</td><td><button class="btn primary sm" data-start-checkin="${b.id}">Check in</button></td></tr>`).join('') : `<tr class="empty-row"><td colspan="4">Nothing pending.</td></tr>`}</tbody></table>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-head"><h3>In-house guests</h3></div>
+      <div class="panel-body flush table-wrap">
+        <table><thead><tr><th>Guest</th><th>Room/Unit</th><th>Check-out</th><th></th></tr></thead>
+        <tbody>${inhouse.length? inhouse.map(b=>`<tr><td>${esc(b.guestName)}</td><td>${roomLabel(b.roomId)}</td><td>${fmtDateShort(b.checkOut)}</td><td><button class="btn primary sm" data-start-checkout="${b.id}">Check out</button></td></tr>`).join('') : `<tr class="empty-row"><td colspan="4">No one in-house.</td></tr>`}</tbody></table>
+      </div>
+    </div>
+  </div>`;
+}
+function events_checkinout(){
+  document.querySelectorAll('[data-start-checkin]').forEach(el=> el.onclick = ()=>{ ui.selectedId=el.dataset.startCheckin; ui.workflow='checkin'; ui.step=0; render(); });
+  document.querySelectorAll('[data-start-checkout]').forEach(el=> el.onclick = ()=>{ ui.selectedId=el.dataset.startCheckout; ui.workflow='checkout'; ui.step=0; render(); });
+}
+const CHECKIN_STEPS = ['Select booking','Verify guest','Verify ID','Confirm room','Advance payment','Notes','Complete'];
+const CHECKOUT_STEPS = ['Open booking','Review charges','Extra services','Final amount','Discount','Tax','Payment','Invoice','Complete'];
+function renderWorkflow(){
+  const b = bookingObj(ui.selectedId);
+  if(!b){ ui.workflow=null; return viewCheckInOut(); }
+  const steps = ui.workflow==='checkin'?CHECKIN_STEPS:CHECKOUT_STEPS;
+  const step = ui.step||0;
+  let inner = '';
+  if(ui.workflow==='checkin'){
+    inner = [
+      `<p>Booking <strong>${b.id}</strong> for <strong>${esc(b.guestName)}</strong>, ${roomLabel(b.roomId)}, ${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)}.</p>`,
+      `<p>Confirm guest identity: <strong>${esc(b.guestName)}</strong>, mobile ${esc(b.mobile)}.</p><div class="f-field"><label>ID type</label><select id="wf-idtype"><option>Aadhaar</option><option>Passport</option><option>Voter ID</option><option>Driving Licence</option></select></div><div class="f-field" style="margin-top:8px;"><label>ID number</label><input id="wf-idnum" placeholder="ID number"/></div>`,
+      `<p>ID verified on file. Government ID is mandatory before handing over keys.</p>`,
+      `<p>Confirm room/unit: <strong>${roomLabel(b.roomId)}</strong>, rate ${fmtINR(b.rate)}/night.</p>`,
+      `<div class="f-field"><label>Advance payment collected now (₹)</label><input id="wf-advance" type="number" value="${b.advance||0}"/></div><div class="f-field" style="margin-top:8px;"><label>Payment method</label><select id="wf-method"><option>Cash</option><option>UPI</option><option>Debit Card</option><option>Credit Card</option><option>Bank Transfer</option></select></div>`,
+      `<div class="f-field"><label>Notes</label><textarea id="wf-notes">${esc(b.notes||'')}</textarea></div>`,
+      `<p>Ready to complete check-in. This will mark the booking <strong>Checked-in</strong> and the room <strong>Occupied</strong>.</p>`
+    ][step];
+  } else {
+    const nights = nightsBetween(b.checkIn,b.checkOut);
+    const gross = nights*b.rate-(b.discount||0);
+    const taxPct = state.settings.tax.cgst+state.settings.tax.sgst+state.settings.tax.igst;
+    inner = [
+      `<p>Booking <strong>${b.id}</strong> for <strong>${esc(b.guestName)}</strong>, ${roomLabel(b.roomId)}.</p>`,
+      `<table><tbody><tr><td>Room charges (${nights} night${nights>1?'s':''} × ${fmtINR(b.rate)})</td><td class="text-right">${fmtINR(nights*b.rate)}</td></tr></tbody></table>`,
+      `<div class="f-field"><label>Extra charges — food, laundry, extra bed (₹)</label><input id="wf-extra" type="number" value="0"/></div>`,
+      `<p>Subtotal so far: <strong id="wf-subtotal-display">${fmtINR(gross)}</strong></p>`,
+      `<div class="f-field"><label>Discount (₹)</label><input id="wf-discount" type="number" value="${b.discount||0}"/></div>`,
+      `<p>Tax rate configured in Settings: <strong>${taxPct}%</strong> (CGST ${state.settings.tax.cgst}% + SGST ${state.settings.tax.sgst}% + IGST ${state.settings.tax.igst}%)</p>`,
+      `<div class="f-field"><label>Payment method for balance</label><select id="wf-method"><option>Cash</option><option>UPI</option><option>Debit Card</option><option>Credit Card</option><option>Bank Transfer</option></select></div>`,
+      `<p>An invoice will be generated automatically on completion.</p>`,
+      `<p>Ready to complete check-out. This will mark the booking <strong>Checked-out</strong> and the room <strong>Cleaning</strong>, and notify housekeeping.</p>`
+    ][step];
+  }
+  return `
+  <div class="page-head"><div><h1 class="page-title">${ui.workflow==='checkin'?'Check-in':'Check-out'} — ${b.id}</h1><div class="page-sub">${esc(b.guestName)} · ${roomLabel(b.roomId)}</div></div>
+    <button class="btn ghost sm" id="wf-exit">Exit workflow</button></div>
+  <div class="panel"><div class="panel-body">
+    <div class="step-track">${steps.map((s,i)=>`<div class="step ${i===step?'active':i<step?'done':''}">${i+1}. ${s}</div>`).join('')}</div>
+    <div style="min-height:100px;">${inner}</div>
+    <div id="wf-err"></div>
+    <div class="flex" style="justify-content:space-between;margin-top:20px;">
+      <button class="btn" id="wf-back" ${step===0?'disabled':''}>Back</button>
+      <button class="btn primary" id="wf-next">${step===steps.length-1?'Complete':'Continue'}</button>
+    </div>
+  </div></div>`;
+}
+function events_checkinout(){
+  if(ui.selectedId && ui.workflow){
+    document.getElementById('wf-exit').onclick = ()=>{ ui.selectedId=null; ui.workflow=null; render(); };
+    document.getElementById('wf-back').onclick = ()=>{ ui.step=Math.max(0,(ui.step||0)-1); render(); };
+    document.getElementById('wf-next').onclick = ()=> advanceWorkflow();
+    return;
+  }
+  document.querySelectorAll('[data-start-checkin]').forEach(el=> el.onclick = ()=>{ ui.selectedId=el.dataset.startCheckin; ui.workflow='checkin'; ui.step=0; render(); });
+  document.querySelectorAll('[data-start-checkout]').forEach(el=> el.onclick = ()=>{ ui.selectedId=el.dataset.startCheckout; ui.workflow='checkout'; ui.step=0; render(); });
+}
+function advanceWorkflow(){
+  const b = bookingObj(ui.selectedId);
+  const steps = ui.workflow==='checkin'?CHECKIN_STEPS:CHECKOUT_STEPS;
+  const step = ui.step||0;
+  if(ui.workflow==='checkin' && step===4){ const adv=document.getElementById('wf-advance'); if(adv){ const amt=+adv.value||0; if(amt>0){ state.payments.push({id:uid('TXN'),bookingId:b.id,property:b.property,amount:amt,method:document.getElementById('wf-method').value,date:todayStr(),notes:'Check-in advance',addedBy:auth.user}); b.advance=amt; } } }
+  if(ui.workflow==='checkin' && step===5){ const n=document.getElementById('wf-notes'); if(n) b.notes=n.value; }
+  if(ui.workflow==='checkout' && step===2){ const ex=document.getElementById('wf-extra'); if(ex) b._extra = +ex.value||0; }
+  if(ui.workflow==='checkout' && step===4){ const d=document.getElementById('wf-discount'); if(d) b.discount = +d.value||0; }
+  if(step===steps.length-1){
+    if(ui.workflow==='checkin'){
+      b.status='checked-in'; const r=roomObj(b.roomId); if(r) r.status='occupied';
+      logAudit('Check-in completed', b.property, b.id); persist(); toast('Check-in complete'); ui.selectedId=null; ui.workflow=null; render();
+    } else {
+      b.status='checked-out'; const r=roomObj(b.roomId); if(r) r.status='cleaning';
+      state.housekeeping.push({id:uid('HK'),property:b.property,roomId:b.roomId,status:'dirty',assignedTo:'Unassigned',checkoutTime:new Date().toTimeString().slice(0,5),notes:'Auto-created on checkout'});
+      const nights = nightsBetween(b.checkIn,b.checkOut);
+      const gross = nights*b.rate-(b.discount||0)+(b._extra||0);
+      const taxPct = state.settings.tax.cgst+state.settings.tax.sgst+state.settings.tax.igst;
+      const tax = Math.round(gross*taxPct/100);
+      const total = gross+tax;
+      const paid = state.payments.filter(p=>p.bookingId===b.id).reduce((s,p)=>s+p.amount,0);
+      const balance = Math.max(0,total-paid);
+      if(balance>0){ state.payments.push({id:uid('TXN'),bookingId:b.id,property:b.property,amount:balance,method:document.getElementById('wf-method')?document.getElementById('wf-method').value:'Cash',date:todayStr(),notes:'Balance on checkout',addedBy:auth.user}); }
+      b.payment='paid';
+      const invNum = state.settings.invoicePrefix + String(state.invoiceSeq++).padStart(4,'0');
+      state.invoices.push({id:invNum,bookingId:b.id,property:b.property,guestName:b.guestName,date:todayStr(),subtotal:gross,discount:b.discount||0,tax,total,advance:paid,balance:0});
+      const g = guestObj(b.guestId); if(g){ g.totalStays++; g.totalSpend+=total; g.outstanding=Math.max(0,g.outstanding-balance); }
+      logAudit('Check-out completed', b.property, b.id); logAudit('Invoice generated', b.property, invNum);
+      persist(); toast('Check-out complete · Invoice '+invNum+' generated'); ui.selectedId=null; ui.workflow=null; render();
+    }
+    return;
+  }
+  ui.step = step+1; render();
+}
+
+/* =========================================================
+   VIEW: INVOICES
+========================================================= */
+function viewInvoices(){
+  let invs = state.invoices.filter(i=> ui.property==='all' || i.property===ui.property).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  return `
+  <div class="page-head"><div><h1 class="page-title">Invoices</h1><div class="page-sub">${invs.length} invoice${invs.length!==1?'s':''}</div></div>
+    <button class="btn sm" id="inv-export">Export CSV</button></div>
+  <div class="panel"><div class="panel-body flush table-wrap">
+    <table><thead><tr><th>Invoice #</th><th>Booking</th><th>Property</th><th>Guest</th><th>Date</th><th class="text-right">Total</th><th class="text-right">Balance</th><th></th></tr></thead>
+    <tbody>${invs.length? invs.map(i=>`<tr>
+      <td><strong>${i.id}</strong></td><td>${i.bookingId}</td><td><span class="tag-prop ${i.property}">${propName(i.property)}</span></td>
+      <td>${esc(i.guestName)}</td><td>${fmtDateShort(i.date)}</td><td class="text-right">${fmtINR(i.total)}</td>
+      <td class="text-right" style="color:${i.balance>0?'var(--red)':'var(--green)'}">${fmtINR(i.balance)}</td>
+      <td><button class="btn sm" data-print-invoice="${i.id}">Print / PDF</button></td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="8">No invoices yet — generated automatically at checkout.</td></tr>`}</tbody></table>
+  </div></div>`;
+}
+function events_invoices(){
+  const ex = document.getElementById('inv-export'); if(ex) ex.onclick = ()=> downloadCSV('invoices.csv', state.invoices.map(i=>({...i})));
+  document.querySelectorAll('[data-print-invoice]').forEach(el=> el.onclick = ()=> openInvoicePrint(el.dataset.printInvoice));
+}
+function openInvoicePrint(id){
+  const inv = state.invoices.find(i=>i.id===id); if(!inv) return;
+  const b = bookingObj(inv.bookingId);
+  const p = state.properties[inv.property];
+  const nights = b? nightsBetween(b.checkIn,b.checkOut) : 1;
+  const body = `
+    <div style="font-family:'Inter',sans-serif;">
+      <div class="flex" style="justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
+        <div><div style="font-family:'Fraunces',serif;font-size:20px;font-weight:600;">${esc(p.name.toUpperCase())}</div><div class="text-soft">${esc(p.location)}</div><div class="text-soft">GSTIN: ${esc(p.gstin)}</div></div>
+        <div class="text-right"><div style="font-weight:600;">Invoice ${inv.id}</div><div class="text-soft">Date: ${fmtDate(inv.date)}</div><div class="text-soft">Booking: ${inv.bookingId}</div></div>
+      </div>
+      <div class="grid-2" style="margin-bottom:14px;">
+        <div><div class="text-soft">Guest</div><strong>${esc(inv.guestName)}</strong><div class="text-soft">${b?esc(b.mobile):''}</div></div>
+        <div><div class="text-soft">Stay</div><strong>${b?roomLabel(b.roomId):''}</strong><div class="text-soft">${b?fmtDate(b.checkIn)+' → '+fmtDate(b.checkOut)+' ('+nights+' nights)':''}</div></div>
+      </div>
+      <table><thead><tr><th>Description</th><th class="text-right">Qty</th><th class="text-right">Rate</th><th class="text-right">Amount</th></tr></thead>
+      <tbody>
+        <tr><td>Room/Unit charges</td><td class="text-right">${nights}</td><td class="text-right">${b?fmtINR(b.rate):''}</td><td class="text-right">${fmtINR(inv.subtotal+inv.discount)}</td></tr>
+      </tbody></table>
+      <table style="margin-top:10px;"><tbody>
+        <tr><td>Subtotal</td><td class="text-right">${fmtINR(inv.subtotal+inv.discount)}</td></tr>
+        <tr><td>Discount</td><td class="text-right">-${fmtINR(inv.discount)}</td></tr>
+        <tr><td>Tax</td><td class="text-right">${fmtINR(inv.tax)}</td></tr>
+        <tr><td><strong>Grand total</strong></td><td class="text-right"><strong>${fmtINR(inv.total)}</strong></td></tr>
+        <tr><td>Advance paid</td><td class="text-right">${fmtINR(inv.advance)}</td></tr>
+        <tr><td><strong>Balance due</strong></td><td class="text-right"><strong>${fmtINR(inv.balance)}</strong></td></tr>
+      </tbody></table>
+      <div class="text-soft" style="margin-top:16px;font-size:11.5px;">${esc(state.settings.invoiceFooter)}</div>
+    </div>`;
+  const foot = `<button class="btn" id="inv-close">Close</button><button class="btn primary" id="inv-print">Print</button>`;
+  openModal('Invoice preview', body, foot, true);
+  document.getElementById('inv-close').onclick = closeModal;
+  document.getElementById('inv-print').onclick = ()=> window.print();
+}
+
+/* =========================================================
+   VIEW: PAYMENTS
+========================================================= */
+function viewPayments(){
+  const pays = scopedPayments().slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const total = pays.reduce((s,p)=>s+p.amount,0);
+  return `
+  <div class="page-head"><div><h1 class="page-title">Payments &amp; Transactions</h1><div class="page-sub">${pays.length} transactions · Total collected ${fmtINR(total)}</div></div>
+    <div class="flex gap-8">
+      <button class="btn sm" id="pay-export">Export CSV</button>
+      <button class="btn primary sm" id="pay-add">+ Record payment</button>
+    </div>
+  </div>
+  <div class="panel"><div class="panel-body flush table-wrap">
+    <table><thead><tr><th>Transaction</th><th>Booking</th><th>Property</th><th>Method</th><th>Date</th><th class="text-right">Amount</th><th>Notes</th><th class="text-right">Action</th></tr></thead>
+    <tbody>${pays.length? pays.map(p=>`<tr>
+      <td><strong>${p.id}</strong></td>
+      <td><a style="cursor:pointer;font-weight:600;" data-view-booking="${p.bookingId}">${p.bookingId}</a></td>
+      <td><span class="tag-prop ${p.property}">${propName(p.property)}</span></td>
+      <td>${esc(p.method)}</td>
+      <td>${fmtDateShort(p.date)}</td>
+      <td class="text-right"><strong>${fmtINR(p.amount)}</strong></td>
+      <td class="text-soft">${esc(p.notes||'—')}</td>
+      <td class="text-right">
+        <button class="btn primary sm" data-print-payment-bill="${p.id}">📄 Generate Bill / Receipt</button>
+      </td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="8">No payments recorded.</td></tr>`}</tbody></table>
+  </div></div>`;
+}
+
+function events_payments(){
+  const add = document.getElementById('pay-add');
+  if(add) add.onclick = ()=> openPaymentModal();
+  const exp = document.getElementById('pay-export');
+  if(exp) exp.onclick = ()=> downloadCSV('payments.csv', scopedPayments().map(p=>({...p})));
+
+  document.querySelectorAll('[data-print-payment-bill]').forEach(el=> {
+    el.onclick = ()=> openPaymentBillPrint(el.dataset.printPaymentBill);
+  });
+  document.querySelectorAll('[data-view-booking]').forEach(el=> {
+    el.onclick = ()=> openBookingDetail(el.dataset.viewBooking);
+  });
+}
+
+function openPaymentBillPrint(paymentId){
+  const p = state.payments.find(x=>x.id===paymentId);
+  if(!p) return;
+  const b = bookingObj(p.bookingId);
+  const prop = state.properties[p.property] || state.properties['azurevista'];
+  const nights = b ? nightsBetween(b.checkIn, b.checkOut) : 1;
+  const gross = b ? (nights * b.rate - (b.discount||0)) : p.amount;
+  const taxPct = state.settings.tax.cgst + state.settings.tax.sgst + state.settings.tax.igst;
+  const tax = Math.round(gross * taxPct / 100);
+  const totalBill = gross + tax;
+  const allPays = b ? state.payments.filter(pay => pay.bookingId === b.id) : [p];
+  const totalPaid = allPays.reduce((sum, item) => sum + item.amount, 0);
+  const remainingBalance = Math.max(0, totalBill - totalPaid);
+
+  const body = `
+    <div style="font-family:'Inter',sans-serif;color:var(--ink);padding:6px;">
+      <!-- Header -->
+      <div class="flex" style="justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--azure);padding-bottom:12px;margin-bottom:16px;">
+        <div>
+          <div style="font-family:'Fraunces',serif;font-size:22px;font-weight:700;color:var(--azure-deep);">${esc(prop.name.toUpperCase())}</div>
+          <div class="text-soft" style="font-size:12px;">${esc(prop.location)}</div>
+          <div class="text-soft" style="font-size:11.5px;margin-top:2px;">GSTIN: <strong>${esc(prop.gstin)}</strong></div>
+        </div>
+        <div class="text-right">
+          <div style="font-size:16px;font-weight:700;color:var(--azure);">PAYMENT RECEIPT & BILL</div>
+          <div style="font-size:12px;margin-top:4px;">Receipt #: <strong>REC-${p.id}</strong></div>
+          <div class="text-soft" style="font-size:11.5px;">Date: ${fmtDate(p.date)}</div>
+        </div>
+      </div>
+
+      <!-- Guest & Booking Info -->
+      <div class="grid-2" style="background:var(--paper);padding:12px;border-radius:4px;border:1px solid var(--line);margin-bottom:16px;">
+        <div>
+          <div class="text-soft" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Guest Details</div>
+          <div style="font-size:14px;font-weight:600;margin-top:2px;">${esc(b ? b.guestName : 'Walk-in Guest')}</div>
+          <div class="text-soft" style="font-size:12px;">Mobile: ${b ? esc(b.mobile) : '—'}</div>
+          ${b && b.email ? `<div class="text-soft" style="font-size:12px;">Email: ${esc(b.email)}</div>` : ''}
+        </div>
+        <div>
+          <div class="text-soft" style="font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Booking & Room Info</div>
+          <div style="font-size:13px;font-weight:600;margin-top:2px;">Booking Ref: ${p.bookingId}</div>
+          <div style="font-size:12.5px;">${b ? roomLabel(b.roomId) : 'Room Service'}</div>
+          ${b ? `<div class="text-soft" style="font-size:11.5px;">Stay: ${fmtDateShort(b.checkIn)} → ${fmtDateShort(b.checkOut)} (${nights} night${nights>1?'s':''})</div>` : ''}
+        </div>
+      </div>
+
+      <!-- Transaction Voucher Box -->
+      <div style="background:var(--azure-tint);border:1px dashed var(--azure);border-radius:4px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-size:11px;color:var(--azure-deep);font-weight:600;text-transform:uppercase;">Payment Received</div>
+          <div style="font-size:13px;color:var(--ink-soft);margin-top:2px;">Method: <strong>${esc(p.method)}</strong> ${p.notes ? `(${esc(p.notes)})` : ''}</div>
+          <div style="font-size:11px;color:var(--ink-soft);">Recorded by: ${esc(p.addedBy || 'Front Desk')}</div>
+        </div>
+        <div class="text-right">
+          <div style="font-size:22px;font-weight:700;color:var(--green);font-family:'Fraunces',serif;">${fmtINR(p.amount)}</div>
+          <span class="badge green" style="font-size:10px;">SUCCESSFUL PAYMENT</span>
+        </div>
+      </div>
+
+      <!-- Financial Statement -->
+      <div class="section-label" style="margin-bottom:6px;">Booking Financial Summary</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Description</th>
+            <th class="text-right">Rate</th>
+            <th class="text-right">Qty / Nights</th>
+            <th class="text-right">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${b ? `
+          <tr>
+            <td>Room / Accommodation Charges (${roomLabel(b.roomId)})</td>
+            <td class="text-right">${fmtINR(b.rate)}</td>
+            <td class="text-right">${nights}</td>
+            <td class="text-right">${fmtINR(nights * b.rate)}</td>
+          </tr>
+          ${b.discount ? `<tr><td>Special Discount</td><td></td><td></td><td class="text-right" style="color:var(--green)">-${fmtINR(b.discount)}</td></tr>` : ''}
+          ` : `
+          <tr>
+            <td>Service Charge / Room Service</td>
+            <td class="text-right">${fmtINR(p.amount)}</td>
+            <td class="text-right">1</td>
+            <td class="text-right">${fmtINR(p.amount)}</td>
+          </tr>
+          `}
+        </tbody>
+      </table>
+
+      <table style="margin-top:12px;background:var(--paper);border-top:1px solid var(--line);">
+        <tbody>
+          <tr>
+            <td>Subtotal</td>
+            <td class="text-right">${fmtINR(gross)}</td>
+          </tr>
+          <tr>
+            <td>Taxes (GST ${taxPct}%)</td>
+            <td class="text-right">${fmtINR(tax)}</td>
+          </tr>
+          <tr>
+            <td><strong>Total Estimated Bill</strong></td>
+            <td class="text-right"><strong>${fmtINR(totalBill)}</strong></td>
+          </tr>
+          <tr>
+            <td style="color:var(--green);"><strong>Total Payments Received To Date</strong></td>
+            <td class="text-right" style="color:var(--green);"><strong>${fmtINR(totalPaid)}</strong></td>
+          </tr>
+          <tr style="border-top:1.5px solid var(--line);">
+            <td><strong style="font-size:14px;color:${remainingBalance>0?'var(--red)':'var(--green)'}">Remaining Balance Due</strong></td>
+            <td class="text-right"><strong style="font-size:14px;color:${remainingBalance>0?'var(--red)':'var(--green)'}">${fmtINR(remainingBalance)}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top:20px;display:flex;justify-content:space-between;align-items:flex-end;">
+        <div style="font-size:11px;color:var(--ink-soft);max-width:300px;">
+          ${esc(state.settings.invoiceFooter)}
+          <div style="margin-top:4px;">Thank you for staying with Azure Hospitality!</div>
+        </div>
+        <div class="text-right" style="font-size:12px;">
+          <div style="border-bottom:1px solid var(--line);width:160px;margin-bottom:4px;"></div>
+          <div style="font-weight:600;">Authorized Signatory</div>
+          <div class="text-soft" style="font-size:10.5px;">${esc(prop.name)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  const foot = `
+    <button class="btn" id="pay-bill-close">Close</button>
+    <button class="btn primary" id="pay-bill-print">🖨️ Print / Save PDF</button>
+  `;
+
+  openModal('Payment Receipt & Bill — REC-' + p.id, body, foot, true);
+  document.getElementById('pay-bill-close').onclick = closeModal;
+  document.getElementById('pay-bill-print').onclick = ()=> window.print();
+}
+
+function openPaymentModal(bookingId){
+  const openBks = state.bookings.filter(b=>!['cancelled','checked-out','no-show'].includes(b.status));
+  const body = `
+    <div class="form-grid">
+      <div class="f-field span2"><label>Booking</label><select id="p-booking">${openBks.map(b=>`<option value="${b.id}" ${b.id===bookingId?'selected':''}>${b.id} — ${b.guestName} (${propName(b.property)})</option>`).join('')}</select></div>
+      <div class="f-field"><label>Amount (₹)</label><input id="p-amount" type="number" value="0"/></div>
+      <div class="f-field"><label>Method</label><select id="p-method"><option>Cash</option><option>UPI</option><option>Debit Card</option><option>Credit Card</option><option>Bank Transfer</option><option>Online OTA payout</option><option>Other</option></select></div>
+      <div class="f-field span2"><label>Notes</label><input id="p-notes" placeholder="Optional"/></div>
+    </div><div id="p-err"></div>`;
+  const foot = `<button class="btn" id="p-cancel">Cancel</button><button class="btn primary" id="p-save">Save &amp; Generate Bill</button>`;
+  openModal('Record payment', body, foot);
+  document.getElementById('p-cancel').onclick = closeModal;
+  document.getElementById('p-save').onclick = ()=>{
+    const amt = +document.getElementById('p-amount').value;
+    if(!amt || amt<=0){ document.getElementById('p-err').innerHTML = `<div class="err-msg">Enter a valid amount.</div>`; return; }
+    const bId = document.getElementById('p-booking').value; const b = bookingObj(bId);
+    const newTxnId = uid('TXN');
+    state.payments.push({id:newTxnId,bookingId:bId,property:b.property,amount:amt,method:document.getElementById('p-method').value,date:todayStr(),notes:document.getElementById('p-notes').value,addedBy:auth.user});
+    if(bookingBalance(b)<=0) b.payment='paid'; else b.payment='partial';
+    logAudit('Payment added', b.property, bId); persist(); closeModal(); toast('Payment recorded successfully');
+    render();
+    openPaymentBillPrint(newTxnId);
+  };
+}
+
+/* =========================================================
+   VIEW: EXPENSES
+========================================================= */
+function viewExpenses(){
+  const exps = scopedExpenses().slice().sort((a,b)=>b.date.localeCompare(a.date));
+  const total = exps.reduce((s,e)=>s+e.amount,0);
+  return `
+  <div class="page-head"><div><h1 class="page-title">Expenses</h1><div class="page-sub">${exps.length} entries · Total ${fmtINR(total)}</div></div>
+    <div class="flex gap-8"><button class="btn sm" id="exp-export">Export CSV</button><button class="btn primary sm" id="exp-add">+ Add expense</button></div></div>
+  <div class="panel"><div class="panel-body flush table-wrap">
+    <table><thead><tr><th>Expense</th><th>Property</th><th>Category</th><th>Vendor</th><th>Method</th><th>Date</th><th class="text-right">Amount</th></tr></thead>
+    <tbody>${exps.length? exps.map(e=>`<tr><td>${e.id}<div class="text-soft" style="font-size:11px;">${esc(e.description||'')}</div></td><td><span class="tag-prop ${e.property}">${propName(e.property)}</span></td><td>${esc(e.category)} <span class="text-soft">/ ${esc(e.subcategory)}</span></td><td>${esc(e.vendor||'—')}</td><td>${esc(e.method)}</td><td>${fmtDateShort(e.date)}</td><td class="text-right">${fmtINR(e.amount)}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="7">No expenses recorded.</td></tr>`}</tbody></table>
+  </div></div>`;
+}
+function events_expenses(){
+  document.getElementById('exp-export').onclick = ()=> downloadCSV('expenses.csv', scopedExpenses().map(e=>({...e})));
+  document.getElementById('exp-add').onclick = openExpenseModal;
+}
+function openExpenseModal(){
+  const body = `
+    <div class="form-grid">
+      <div class="f-field"><label>Property</label><select id="e-property"><option value="azurevista">Azurevista</option><option value="azuresuite">Azure Suite</option></select></div>
+      <div class="f-field"><label>Category</label><select id="e-category">${Object.keys(EXPENSE_CATEGORIES).map(c=>`<option>${c}</option>`).join('')}</select></div>
+      <div class="f-field"><label>Subcategory</label><select id="e-subcategory"></select></div>
+      <div class="f-field"><label>Amount (₹)</label><input id="e-amount" type="number" value="0"/></div>
+      <div class="f-field"><label>Date</label><input id="e-date" type="date" value="${todayStr()}"/></div>
+      <div class="f-field"><label>Payment method</label><select id="e-method"><option>Cash</option><option>UPI</option><option>Bank Transfer</option><option>Card</option><option>Other</option></select></div>
+      <div class="f-field"><label>Vendor</label><input id="e-vendor" placeholder="Optional"/></div>
+      <div class="f-field span2"><label>Description</label><input id="e-desc" placeholder="Short description"/></div>
+    </div><div id="e-err"></div>`;
+  const foot = `<button class="btn" id="e-cancel">Cancel</button><button class="btn primary" id="e-save">Save expense</button>`;
+  openModal('Add expense', body, foot);
+  const cat = document.getElementById('e-category'), sub = document.getElementById('e-subcategory');
+  function refreshSub(){ sub.innerHTML = EXPENSE_CATEGORIES[cat.value].map(s=>`<option>${s}</option>`).join(''); }
+  cat.onchange = refreshSub; refreshSub();
+  document.getElementById('e-cancel').onclick = closeModal;
+  document.getElementById('e-save').onclick = ()=>{
+    const amt = +document.getElementById('e-amount').value;
+    if(!amt||amt<=0){ document.getElementById('e-err').innerHTML=`<div class="err-msg">Enter a valid amount.</div>`; return; }
+    const exp = {id:uid('EX'),property:document.getElementById('e-property').value,category:cat.value,subcategory:sub.value,amount:amt,date:document.getElementById('e-date').value,vendor:document.getElementById('e-vendor').value,method:document.getElementById('e-method').value,description:document.getElementById('e-desc').value,addedBy:auth.user};
+    state.expenses.push(exp); logAudit('Expense added', exp.property, exp.id); persist(); closeModal(); toast('Expense added'); render();
+  };
+}
+
+/* =========================================================
+   VIEW: INVENTORY
+========================================================= */
+function viewInventory(){
+  const items = scopedInventory();
+  const low = items.filter(i=>i.stock<i.minStock);
+  return `
+  <div class="page-head"><div><h1 class="page-title">Inventory</h1><div class="page-sub">${items.length} items · ${propName(ui.property)}</div></div>
+    <div class="flex gap-8"><button class="btn sm" id="inv-item-export">Export CSV</button><button class="btn primary sm" id="inv-item-add">+ Add item</button></div></div>
+  ${low.length? `<div class="panel" style="border-color:var(--red);"><div class="panel-body flush">
+    ${low.map(i=>`<div class="notif-item"><div class="t" style="color:var(--red);">Low stock — ${esc(i.item)}</div><div class="m">Current: ${i.stock} ${i.unit} · Minimum: ${i.minStock} ${i.unit} · ${propName(i.property)}</div></div>`).join('')}
+  </div></div>` : ''}
+  <div class="panel"><div class="panel-body flush table-wrap">
+    <table><thead><tr><th>Item</th><th>Category</th><th>Property</th><th class="text-right">Current stock</th><th class="text-right">Min stock</th><th class="text-right">Purchase price</th><th>Supplier</th><th></th></tr></thead>
+    <tbody>${items.length? items.map(i=>`<tr>
+      <td>${esc(i.item)}</td><td>${esc(i.category)}</td><td><span class="tag-prop ${i.property}">${propName(i.property)}</span></td>
+      <td class="text-right" style="color:${i.stock<i.minStock?'var(--red)':'inherit'}">${i.stock} ${esc(i.unit)}</td>
+      <td class="text-right">${i.minStock} ${esc(i.unit)}</td><td class="text-right">${fmtINR(i.purchasePrice)}</td><td>${esc(i.supplier||'—')}</td>
+      <td><button class="btn sm" data-adjust-stock="${i.id}">Adjust</button></td>
+    </tr>`).join('') : `<tr class="empty-row"><td colspan="8">No inventory items.</td></tr>`}</tbody></table>
+  </div></div>`;
+}
+function events_inventory(){
+  document.getElementById('inv-item-export').onclick = ()=> downloadCSV('inventory.csv', scopedInventory().map(i=>({...i})));
+  document.getElementById('inv-item-add').onclick = ()=> openInventoryModal();
+  document.querySelectorAll('[data-adjust-stock]').forEach(el=> el.onclick = ()=> openInventoryModal(el.dataset.adjustStock));
+}
+function openInventoryModal(itemId){
+  const item = itemId? state.inventory.find(i=>i.id===itemId) : null;
+  const body = `
+    <div class="form-grid">
+      <div class="f-field span2"><label>Item name</label><input id="i-name" value="${item?esc(item.item):''}" ${item?'disabled':''}/></div>
+      <div class="f-field"><label>Property</label><select id="i-property" ${item?'disabled':''}><option value="azurevista" ${item&&item.property==='azurevista'?'selected':''}>Azurevista</option><option value="azuresuite" ${item&&item.property==='azuresuite'?'selected':''}>Azure Suite</option></select></div>
+      <div class="f-field"><label>Category</label><select id="i-category" ${item?'disabled':''}>${INVENTORY_CATEGORIES.map(c=>`<option ${item&&item.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="f-field"><label>Current stock</label><input id="i-stock" type="number" value="${item?item.stock:0}"/></div>
+      <div class="f-field"><label>Unit</label><input id="i-unit" value="${item?esc(item.unit):'pcs'}" ${item?'disabled':''}/></div>
+      <div class="f-field"><label>Minimum stock</label><input id="i-min" type="number" value="${item?item.minStock:0}"/></div>
+      <div class="f-field"><label>Purchase price (₹)</label><input id="i-price" type="number" value="${item?item.purchasePrice:0}"/></div>
+      <div class="f-field span2"><label>Supplier</label><input id="i-supplier" value="${item?esc(item.supplier||''):''}"/></div>
+    </div>`;
+  const foot = `<button class="btn" id="i-cancel">Cancel</button><button class="btn primary" id="i-save">${item?'Update':'Add item'}</button>`;
+  openModal(item?'Adjust inventory':'Add inventory item', body, foot);
+  document.getElementById('i-cancel').onclick = closeModal;
+  document.getElementById('i-save').onclick = ()=>{
+    if(item){
+      item.stock = +document.getElementById('i-stock').value||0; item.minStock=+document.getElementById('i-min').value||0;
+      item.purchasePrice=+document.getElementById('i-price').value||0; item.supplier=document.getElementById('i-supplier').value;
+      logAudit('Inventory changed', item.property, item.item);
+    } else {
+      const it = {id:uid('INV'),property:document.getElementById('i-property').value,item:document.getElementById('i-name').value,category:document.getElementById('i-category').value,unit:document.getElementById('i-unit').value||'pcs',minStock:+document.getElementById('i-min').value||0,stock:+document.getElementById('i-stock').value||0,purchasePrice:+document.getElementById('i-price').value||0,supplier:document.getElementById('i-supplier').value};
+      state.inventory.push(it); logAudit('Inventory changed', it.property, it.item+' (new item)');
+    }
+    persist(); closeModal(); toast('Inventory updated'); render();
+  };
+}
+
+/* =========================================================
+   VIEW: PURCHASES
+========================================================= */
+function viewPurchases(){
+  const purch = state.purchases.filter(p=>ui.property==='all'||p.property===ui.property).slice().sort((a,b)=>b.date.localeCompare(a.date));
+  return `
+  <div class="page-head"><div><h1 class="page-title">Purchases</h1><div class="page-sub">${purch.length} purchase orders</div></div>
+    <button class="btn primary sm" id="po-add">+ Record purchase</button></div>
+  <div class="panel"><div class="panel-body flush table-wrap">
+    <table><thead><tr><th>Purchase</th><th>Supplier</th><th>Property</th><th>Items</th><th>Date</th><th class="text-right">Total</th><th>Payment</th></tr></thead>
+    <tbody>${purch.length? purch.map(p=>`<tr><td>${p.id}<div class="text-soft" style="font-size:11px;">${esc(p.invoiceNo)}</div></td><td>${esc(p.supplier)}</td><td><span class="tag-prop ${p.property}">${propName(p.property)}</span></td><td>${esc(p.items)}</td><td>${fmtDateShort(p.date)}</td><td class="text-right">${fmtINR(p.total)}</td><td>${statusBadge(p.paymentStatus==='Paid'?'paid':'partial')}</td></tr>`).join('') : `<tr class="empty-row"><td colspan="7">No purchases recorded.</td></tr>`}</tbody></table>
+  </div></div>`;
+}
+function events_purchases(){ document.getElementById('po-add').onclick = openPurchaseModal; }
+function openPurchaseModal(){
+  const invItems = state.inventory;
+  const body = `
+    <div class="form-grid">
+      <div class="f-field"><label>Supplier</label><input id="po-supplier" placeholder="Supplier name"/></div>
+      <div class="f-field"><label>Invoice number</label><input id="po-invno" placeholder="Supplier invoice #"/></div>
+      <div class="f-field"><label>Property</label><select id="po-property"><option value="azurevista">Azurevista</option><option value="azuresuite">Azure Suite</option></select></div>
+      <div class="f-field"><label>Date</label><input id="po-date" type="date" value="${todayStr()}"/></div>
+      <div class="f-field span2"><label>Item to restock</label><select id="po-item">${invItems.map(i=>`<option value="${i.id}">${i.item} (${propName(i.property)}) — current ${i.stock} ${i.unit}</option>`).join('')}</select></div>
+      <div class="f-field"><label>Quantity</label><input id="po-qty" type="number" value="10"/></div>
+      <div class="f-field"><label>Unit price (₹)</label><input id="po-unitprice" type="number" value="0"/></div>
+      <div class="f-field"><label>Tax (₹)</label><input id="po-tax" type="number" value="0"/></div>
+      <div class="f-field"><label>Payment status</label><select id="po-paystatus"><option>Paid</option><option>Pending</option></select></div>
+    </div>`;
+  const foot = `<button class="btn" id="po-cancel">Cancel</button><button class="btn primary" id="po-save">Save purchase</button>`;
+  openModal('Record purchase', body, foot, true);
+  document.getElementById('po-cancel').onclick = closeModal;
+  document.getElementById('po-save').onclick = ()=>{
+    const qty = +document.getElementById('po-qty').value||0, unitPrice=+document.getElementById('po-unitprice').value||0, tax=+document.getElementById('po-tax').value||0;
+    const itemId = document.getElementById('po-item').value; const item = state.inventory.find(i=>i.id===itemId);
+    const total = qty*unitPrice+tax;
+    const po = {id:uid('PO'),supplier:document.getElementById('po-supplier').value||'Unnamed supplier',invoiceNo:document.getElementById('po-invno').value,property:document.getElementById('po-property').value,date:document.getElementById('po-date').value,items:`${item.item} x${qty}`,qty,unitPrice,tax,total,paymentStatus:document.getElementById('po-paystatus').value};
+    state.purchases.push(po);
+    item.stock += qty; item.purchasePrice = unitPrice||item.purchasePrice;
+    logAudit('Purchase recorded', po.property, po.id); logAudit('Inventory changed', item.property, item.item+' +'+qty);
+    persist(); closeModal(); toast('Purchase recorded — inventory updated'); render();
+  };
+}
+
+/* =========================================================
+   VIEW: HOUSEKEEPING
+========================================================= */
+const HK_STATUSES = ['dirty','cleaning','clean','inspected','maintenance'];
+function viewHousekeeping(){
+  const rooms = state.rooms.filter(r=> ui.property==='all'||ui.property==='azurevista');
+  return `
+  <div class="page-head"><div><h1 class="page-title">Housekeeping</h1><div class="page-sub">Azurevista room status board</div></div></div>
+  <div class="panel"><div class="panel-body flush table-wrap">
+    <table><thead><tr><th>Room</th><th>Current guest</th><th>Checkout time</th><th>Housekeeping status</th><th>Assigned staff</th><th>Notes</th></tr></thead>
+    <tbody>${rooms.length? rooms.map(r=>{
+      const active = state.bookings.find(b=>b.roomId===r.id&&b.status==='checked-in');
+      const hkStatus = r.status==='cleaning'?'dirty':(r.status==='available'?'clean':(r.status==='occupied'?'—':r.status));
+      return `<tr><td><strong>Room ${r.number}</strong></td><td>${active?esc(active.guestName):'—'}</td><td>${active?esc(active.checkOutTime):'—'}</td>
+      <td>${hkStatus==='—'?'<span class="text-soft">In use</span>':`<select data-hk-status="${r.id}" class="btn sm" style="border:1px solid var(--line);">${HK_STATUSES.map(s=>`<option value="${s}" ${hkStatus===s?'selected':''}>${s}</option>`).join('')}</select>`}</td>
+      <td>${esc(state.staff.find(s=>s.role==='Housekeeping')?.name||'Unassigned')}</td><td class="text-soft">—</td></tr>`;
+    }).join('') : `<tr class="empty-row"><td colspan="6">No rooms.</td></tr>`}</tbody></table>
+  </div></div>`;
+}
+function events_housekeeping(){
+  document.querySelectorAll('[data-hk-status]').forEach(el=> el.onchange = ()=>{
+    const r = roomObj(el.dataset.hkStatus); const v = el.value;
+    r.status = v==='clean'||v==='inspected' ? 'available' : (v==='maintenance'?'maintenance':'cleaning');
+    logAudit('Room status changed', r.property, 'Room '+r.number+' → '+v); persist(); toast('Housekeeping status updated'); render();
+  });
+}
+
+/* =========================================================
+   VIEW: MAINTENANCE
+========================================================= */
+function viewMaintenance(){
+  const items = scopedMaintenance().slice().sort((a,b)=>b.date.localeCompare(a.date));
+  return `
+  <div class="page-head"><div><h1 class="page-title">Maintenance</h1><div class="page-sub">${items.length} tasks</div></div>
+    <button class="btn primary sm" id="mt-add">+ Report issue</button></div>
+  <div class="panel"><div class="panel-body flush table-wrap">
+    <table><thead><tr><th>Issue</th><th>Room/Unit</th><th>Property</th><th>Priority</th><th>Assigned</th><th class="text-right">Est. cost</th><th>Status</th></tr></thead>
+    <tbody>${items.length? items.map(m=>`<tr><td>${esc(m.issue)}<div class="text-soft" style="font-size:11px;">${fmtDateShort(m.date)} · reported by ${esc(m.reportedBy)}</div></td><td>${roomLabel(m.roomId)}</td><td><span class="tag-prop ${m.property}">${propName(m.property)}</span></td><td><span class="badge ${m.priority==='High'?'red':m.priority==='Medium'?'amber':'grey'}">${m.priority}</span></td><td>${esc(m.assignedTo)}</td><td class="text-right">${fmtINR(m.estCost)}</td><td><select data-mt-status="${m.id}" class="btn sm" style="border:1px solid var(--line);">${['Open','Assigned','In Progress','Completed'].map(s=>`<option ${m.status===s?'selected':''}>${s}</option>`).join('')}</select></td></tr>`).join('') : `<tr class="empty-row"><td colspan="7">No maintenance issues reported.</td></tr>`}</tbody></table>
+  </div></div>`;
+}
+function events_maintenance(){
+  document.getElementById('mt-add').onclick = openMaintenanceModal;
+  document.querySelectorAll('[data-mt-status]').forEach(el=> el.onchange = ()=>{
+    const m = state.maintenance.find(x=>x.id===el.dataset.mtStatus); m.status = el.value;
+    if(m.status==='Completed'){ const r=roomObj(m.roomId); if(r&&r.status==='maintenance') r.status='available'; }
+    logAudit('Maintenance updated', m.property, m.id+' → '+m.status); persist(); toast('Maintenance status updated'); render();
+  });
+}
+function openMaintenanceModal(){
+  const rooms = state.rooms.concat(state.units);
+  const body = `
+    <div class="form-grid">
+      <div class="f-field"><label>Property</label><select id="m-property"><option value="azurevista">Azurevista</option><option value="azuresuite">Azure Suite</option></select></div>
+      <div class="f-field"><label>Room / Unit</label><select id="m-room">${rooms.map(r=>`<option value="${r.id}">${r.property==='azurevista'?'Room '+r.number:r.number}</option>`).join('')}</select></div>
+      <div class="f-field span2"><label>Issue</label><input id="m-issue" placeholder="Describe the issue"/></div>
+      <div class="f-field"><label>Priority</label><select id="m-priority"><option>Low</option><option selected>Medium</option><option>High</option></select></div>
+      <div class="f-field"><label>Estimated cost (₹)</label><input id="m-cost" type="number" value="0"/></div>
+      <div class="f-field span2"><label>Assigned to</label><input id="m-assigned" placeholder="Staff or vendor"/></div>
+    </div>`;
+  const foot = `<button class="btn" id="m-cancel">Cancel</button><button class="btn primary" id="m-save">Report issue</button>`;
+  openModal('Report maintenance issue', body, foot);
+  document.getElementById('m-cancel').onclick = closeModal;
+  document.getElementById('m-save').onclick = ()=>{
+    const issue = document.getElementById('m-issue').value.trim();
+    if(!issue){ toast('Enter an issue description'); return; }
+    const mt = {id:uid('MT'),property:document.getElementById('m-property').value,roomId:document.getElementById('m-room').value,issue,priority:document.getElementById('m-priority').value,reportedBy:auth.user,date:todayStr(),assignedTo:document.getElementById('m-assigned').value||'Unassigned',estCost:+document.getElementById('m-cost').value||0,actualCost:0,status:'Open',notes:''};
+    state.maintenance.push(mt); logAudit('Maintenance reported', mt.property, mt.id); persist(); closeModal(); toast('Issue reported'); render();
+  };
+}
+function logOTASync(property, platform, type, message, status = 'Success'){
+  if(!state.otaSyncLogs) state.otaSyncLogs = [];
+  state.otaSyncLogs.unshift({
+    id: uid('SYNC'),
+    timestamp: new Date().toISOString(),
+    property,
+    platform,
+    type,
+    message,
+    status
+  });
+  if(state.otaSyncLogs.length > 50) state.otaSyncLogs.pop();
+}
+
+function pushAvailabilityToOTAs(property, roomId, actionType){
+  if(!state.ota) return;
+  OTA_PLATFORMS.forEach(plat => {
+    const conn = state.ota[property+'|'+plat];
+    if(conn && conn.status === 'connected'){
+      conn.lastSync = new Date().toISOString();
+      logOTASync(property, plat, 'AVAILABILITY_PUSH', `2-Way Sync (${actionType}): Room ${roomId} inventory updated across channel.`, 'Success');
+    }
+  });
+  persist();
+}
+
+function syncOTAChannels(propertyId){
+  const propsToSync = propertyId === 'all' ? ['azurevista','azuresuite'] : [propertyId];
+  let synced = 0;
+  propsToSync.forEach(p => {
+    OTA_PLATFORMS.forEach(plat => {
+      const conn = state.ota[p+'|'+plat];
+      if(conn && conn.status === 'connected'){
+        conn.lastSync = new Date().toISOString();
+        synced++;
+        logOTASync(p, plat, '2WAY_SYNC', `Real-time rates & calendar feed synced successfully.`, 'Success');
+      }
+    });
+  });
+  state.lastSync = new Date().toISOString();
+  persist();
+  return synced;
+}
+
+function simulateIncomingOTABooking(propertyId, plat){
+  const prop = propertyId === 'all' ? 'azurevista' : propertyId;
+  const platform = plat || (prop==='azurevista'?'MakeMyTrip':'Airbnb');
+  const conn = state.ota[prop+'|'+platform];
+  if(conn) {
+    conn.status = 'connected';
+    conn.lastSync = new Date().toISOString();
+  }
+
+  const availableRooms = prop==='azurevista'? state.rooms.filter(r=>r.status==='available') : state.units.filter(u=>u.status==='available');
+  const room = availableRooms.length ? availableRooms[0] : (prop==='azurevista'?state.rooms[0]:state.units[0]);
+  const newGuestId = uid('GU');
+  const newBkId = (platform==='MakeMyTrip'?'MMT-':platform==='Booking.com'?'BDC-':'ABNB-') + Math.floor(1000 + Math.random()*9000);
+  const names = ['Vikram Sharma', 'Ananya Deshmukh', 'Rajesh Kulkarni', 'Sarah Jenkins', 'Manish Gupta'];
+  const name = names[Math.floor(Math.random()*names.length)];
+  const rate = room ? room.rate : 2500;
+  const nights = 2;
+  const gross = nights * rate;
+
+  state.guests.push({
+    id: newGuestId,
+    name,
+    mobile: '9' + Math.floor(100000000 + Math.random()*900000000),
+    email: name.toLowerCase().replace(/\s+/g,'.') + '@example.com',
+    address: 'Delhi NCR',
+    idType: 'Aadhaar',
+    idNumber: 'XXXX-XXXX-' + Math.floor(1000+Math.random()*9000),
+    properties: [prop],
+    totalStays: 1,
+    totalSpend: gross,
+    outstanding: 0
+  });
+
+  const newBk = {
+    id: newBkId,
+    property: prop,
+    roomId: room ? room.id : 'RM-101',
+    guestId: newGuestId,
+    guestName: name,
+    mobile: '9' + Math.floor(100000000 + Math.random()*900000000),
+    email: name.toLowerCase().replace(/\s+/g,'.') + '@example.com',
+    adults: 2,
+    children: 0,
+    checkIn: todayStr(),
+    checkInTime: '14:00',
+    checkOut: addDays(todayStr(), nights),
+    checkOutTime: '11:00',
+    rate,
+    discount: 0,
+    advance: gross,
+    source: platform,
+    status: 'reserved',
+    payment: 'paid',
+    notes: `Auto-imported via ${platform} Channel Webhook`,
+    createdBy: platform + ' Channel Sync',
+    createdDate: todayStr()
+  };
+
+  state.bookings.unshift(newBk);
+  if(room) room.status = 'reserved';
+
+  logOTASync(prop, platform, 'INCOMING_BOOKING', `Imported Webhook Reservation ${newBkId} for ${name} (${nights} nights, ${roomLabel(room?room.id:'RM-101')})`, 'Success');
+  pushAvailabilityToOTAs(prop, room?room.id:'RM-101', 'Imported OTA Booking');
+
+  persist();
+  toast(`⚡ Live Webhook: Imported booking ${newBkId} from ${platform}!`);
+}
+
+function viewOTA(){
+  const props = ui.property==='all' ? ['azurevista','azuresuite'] : [ui.property];
+  const logs = (state.otaSyncLogs||[]).filter(l=> ui.property==='all' || l.property===ui.property);
+
+  let connectedCount = 0;
+  let totalChannels = props.length * OTA_PLATFORMS.length;
+  let icalCount = 0;
+
+  props.forEach(p => {
+    OTA_PLATFORMS.forEach(plat => {
+      const c = state.ota[p+'|'+plat];
+      if(c && c.status==='connected') connectedCount++;
+      if(c && c.icalImportUrl) icalCount++;
+    });
+  });
+
+  return `
+  <div class="page-head">
+    <div>
+      <h1 class="page-title">OTA &amp; Channel Manager</h1>
+      <div class="page-sub">Real-time 2-Way Availability, Rates &amp; iCal Sync Engine · ${propName(ui.property)}</div>
+    </div>
+    <div class="flex gap-8">
+      <button class="btn sm" id="ota-trigger-webhook" style="background:var(--teal-tint);color:var(--teal);border-color:var(--teal);">📥 Webhook Test: Receive Booking</button>
+      <button class="btn primary sm" id="ota-sync-now">⚡ Sync All Channels Now</button>
+    </div>
+  </div>
+
+  <div class="kpi-row" style="margin-bottom:22px;">
+    <div class="kpi">
+      <div class="lbl">Connected OTA Channels</div>
+      <div class="val small" style="color:var(--azure);">${connectedCount} / ${totalChannels} Active</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">2-Way Sync Status</div>
+      <div class="val small" style="color:var(--green);"><span class="dot" style="background:var(--green);display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:4px;"></span> Live Syncing</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">iCal Calendar Feeds</div>
+      <div class="val small">${icalCount} Configured</div>
+    </div>
+    <div class="kpi">
+      <div class="lbl">Channel Activity (24h)</div>
+      <div class="val small">${logs.length} Logged Events</div>
+    </div>
+  </div>
+
+  ${props.map(p=>`
+    <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+      <span>${propName(p)} Channels</span>
+      <span class="text-soft" style="font-size:11px;font-weight:normal;">Property Code: ${p}</span>
+    </div>
+    <div class="grid-3" style="margin-bottom:24px;">
+      ${OTA_PLATFORMS.map(plat=>{
+        const conn = state.ota[p+'|'+plat] || { status:'not_configured' };
+        const isConnected = conn.status === 'connected';
+        return `
+        <div class="panel" style="border-top:3px solid ${isConnected?'var(--green)':'var(--line)'};margin-bottom:0;">
+          <div class="panel-head">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:15px;font-weight:600;">${plat}</span>
+            </div>
+            <span class="badge ${isConnected?'green':'grey'}">${isConnected?'Connected':'Not Configured'}</span>
+          </div>
+          <div class="panel-body" style="font-size:12px;">
+            <div class="text-soft" style="margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              API Credential: <strong>${conn.apiKey ? esc(conn.apiKey) : 'Not set'}</strong>
+            </div>
+            <div class="text-soft" style="margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              iCal Feed: <strong>${conn.icalImportUrl ? 'Configured' : 'None'}</strong>
+            </div>
+            <div class="text-soft" style="margin-bottom:12px;">
+              Last Sync: ${conn.lastSync ? fmtDateTime(conn.lastSync) : 'Never'}
+            </div>
+            <div class="flex gap-6">
+              <button class="btn sm" style="flex:1;" data-configure-ota="${p}|${plat}">⚙ Config &amp; iCal</button>
+              <button class="btn sm ${isConnected?'primary':''}" data-sync-single="${p}|${plat}">⚡ Sync</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `).join('')}
+
+  <div class="panel">
+    <div class="panel-head">
+      <h3>Real-Time Channel Manager Audit &amp; Sync Log</h3>
+      <button class="btn ghost sm" id="ota-clear-logs">Clear logs</button>
+    </div>
+    <div class="panel-body flush table-wrap">
+      <table>
+        <thead>
+          <tr><th>Timestamp</th><th>Property</th><th>Platform</th><th>Type</th><th>Sync Event Details</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          ${logs.length? logs.map(l=>`
+            <tr>
+              <td style="font-size:11.5px;">${fmtDateTime(l.timestamp)}</td>
+              <td><span class="tag-prop ${l.property}">${propName(l.property)}</span></td>
+              <td><strong>${esc(l.platform)}</strong></td>
+              <td><span class="badge ${l.type==='INCOMING_BOOKING'?'teal':l.type==='AVAILABILITY_PUSH'?'blue':'grey'}">${l.type}</span></td>
+              <td style="font-size:12px;">${esc(l.message)}</td>
+              <td><span class="badge green">${l.status}</span></td>
+            </tr>
+          `).join('') : `<tr class="empty-row"><td colspan="6">No sync events recorded yet.</td></tr>`}
+        </tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function events_ota(){
+  const syncNow = document.getElementById('ota-sync-now');
+  if(syncNow) syncNow.onclick = ()=>{
+    const count = syncOTAChannels(ui.property);
+    toast(`⚡ 2-Way Sync completed across ${count} connected OTA channels!`);
+    render();
+  };
+
+  const webhookBtn = document.getElementById('ota-trigger-webhook');
+  if(webhookBtn) webhookBtn.onclick = ()=>{
+    simulateIncomingOTABooking(ui.property);
+    render();
+  };
+
+  const clearBtn = document.getElementById('ota-clear-logs');
+  if(clearBtn) clearBtn.onclick = ()=>{
+    state.otaSyncLogs = [];
+    persist();
+    toast('Sync logs cleared');
+    render();
+  };
+
+  document.querySelectorAll('[data-sync-single]').forEach(el=> el.onclick = ()=>{
+    const [p,plat] = el.dataset.syncSingle.split('|');
+    const conn = state.ota[p+'|'+plat];
+    if(conn){
+      conn.status = 'connected';
+      conn.lastSync = new Date().toISOString();
+      logOTASync(p, plat, 'SINGLE_SYNC', `Manual 2-Way channel sync triggered successfully.`, 'Success');
+      persist();
+      toast(`Synced ${plat} (${propName(p)})`);
+      render();
+    }
+  });
+
+  document.querySelectorAll('[data-configure-ota]').forEach(el=> el.onclick = ()=>{
+    const [p,plat] = el.dataset.configureOta.split('|');
+    const conn = state.ota[p+'|'+plat] || {};
+
+    const bodyHtml = `
+      <div class="form-grid">
+        <div class="f-field span2">
+          <label>API Key / Account ID</label>
+          <input id="ota-f-key" value="${esc(conn.apiKey||'')}" placeholder="e.g. MMT-LIVE-KEY-99812"/>
+        </div>
+        <div class="f-field span2">
+          <label>Webhook Secret Key</label>
+          <input id="ota-f-secret" value="${esc(conn.webhookSecret||'')}" placeholder="whsec_..."/>
+        </div>
+        <div class="f-field span2">
+          <label>iCal Import URL (From ${plat})</label>
+          <input id="ota-f-ical-import" value="${esc(conn.icalImportUrl||'')}" placeholder="https://www.${plat.toLowerCase().replace(/[^a-z]/g,'')}.com/calendar/ical/...ics"/>
+        </div>
+        <div class="f-field span2">
+          <label>iCal Export URL (Share with ${plat})</label>
+          <input value="${esc(conn.icalExportUrl||'')}" disabled style="background:var(--paper);"/>
+        </div>
+        <div class="f-field span2">
+          <label class="flex gap-6"><input type="checkbox" id="ota-f-autosync" ${conn.autoSync!==false?'checked':''}/> Enable Automatic 2-Way Live Syncing</label>
+        </div>
+      </div>`;
+
+    const footHtml = `<button class="btn" id="ota-modal-cancel">Cancel</button><button class="btn primary" id="ota-modal-save">Save &amp; Connect Channel</button>`;
+
+    openModal(`Configure ${plat} (${propName(p)})`, bodyHtml, footHtml, true);
+
+    document.getElementById('ota-modal-cancel').onclick = closeModal;
+    document.getElementById('ota-modal-save').onclick = ()=>{
+      const key = document.getElementById('ota-f-key').value.trim();
+      const secret = document.getElementById('ota-f-secret').value.trim();
+      const ical = document.getElementById('ota-f-ical-import').value.trim();
+      const autoSync = document.getElementById('ota-f-autosync').checked;
+
+      state.ota[p+'|'+plat] = {
+        property: p,
+        platform: plat,
+        status: (key || ical) ? 'connected' : 'not_configured',
+        apiKey: key,
+        webhookSecret: secret,
+        icalImportUrl: ical,
+        icalExportUrl: conn.icalExportUrl || `https://azurehospitality.in/api/ical/export/${p}/${plat.toLowerCase().replace(/[^a-z]/g,'')}.ics`,
+        autoSync,
+        lastSync: new Date().toISOString()
+      };
+
+      logOTASync(p, plat, 'CHANNEL_CONFIG', `Channel configuration updated. Status: ${(key||ical)?'Connected':'Not Configured'}.`, 'Success');
+      persist();
+      closeModal();
+      toast(`${plat} settings saved.`);
+      render();
+    };
+  });
+}
+
+/* =========================================================
+   VIEW: REPORTS
+========================================================= */
+function viewReports(){
+  return `
+  <div class="page-head"><div><h1 class="page-title">Reports</h1><div class="page-sub">${propName(ui.property)}</div></div></div>
+  <div class="grid-3">
+    <div class="panel"><div class="panel-head"><h3>Booking reports</h3></div><div class="panel-body">
+      <button class="btn sm w-full" style="margin-bottom:8px;" data-report="bookings">Daily / monthly bookings (CSV)</button>
+      <button class="btn sm w-full" data-report="cancellations">Cancellations &amp; no-shows (CSV)</button>
+    </div></div>
+    <div class="panel"><div class="panel-head"><h3>Financial reports</h3></div><div class="panel-body">
+      <button class="btn sm w-full" style="margin-bottom:8px;" data-report="revenue">Revenue (CSV)</button>
+      <button class="btn sm w-full" style="margin-bottom:8px;" data-report="expenses">Expenses (CSV)</button>
+      <button class="btn sm w-full" data-report="pnl">Profit &amp; Loss (CSV)</button>
+    </div></div>
+    <div class="panel"><div class="panel-head"><h3>Property &amp; inventory</h3></div><div class="panel-body">
+      <button class="btn sm w-full" style="margin-bottom:8px;" data-report="occupancy">Occupancy &amp; ADR (CSV)</button>
+      <button class="btn sm w-full" data-report="inventory">Inventory movement (CSV)</button>
+    </div></div>
+  </div>
+  <div class="panel"><div class="panel-head"><h3>Profit &amp; Loss — September 2026</h3></div><div class="panel-body flush">
+    ${(()=>{ const av=propStats('azurevista','2026-09-01','2026-09-30'), as=propStats('azuresuite','2026-09-01','2026-09-30');
+      const rows = [
+        ['Gross revenue', av.revenue+as.revenue],['OTA commission', -(av.otaComm+as.otaComm)],
+        ['Operating expenses', -(av.expenses+as.expenses)],['Net operating profit', av.profit+as.profit]
+      ];
+      return `<table><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td class="text-right" style="font-weight:${r[0].includes('Net')?'700':'400'}">${fmtINR(r[1])}</td></tr>`).join('')}</tbody></table>`;
+    })()}
+  </div></div>`;
+}
+function events_reports(){
+  document.querySelectorAll('[data-report]').forEach(el=> el.onclick = ()=>{
+    const type = el.dataset.report;
+    if(type==='bookings') downloadCSV('bookings-report.csv', scopedBookings().map(b=>({id:b.id,property:b.property,guest:b.guestName,checkIn:b.checkIn,checkOut:b.checkOut,status:b.status,source:b.source})));
+    else if(type==='cancellations') downloadCSV('cancellations-report.csv', scopedBookings().filter(b=>['cancelled','no-show'].includes(b.status)).map(b=>({id:b.id,guest:b.guestName,status:b.status,date:b.checkIn})));
+    else if(type==='revenue') downloadCSV('revenue-report.csv', scopedBookings().map(b=>({id:b.id,property:b.property,source:b.source,revenue:nightsBetween(b.checkIn,b.checkOut)*b.rate-(b.discount||0)})));
+    else if(type==='expenses') downloadCSV('expenses-report.csv', scopedExpenses().map(e=>({...e})));
+    else if(type==='pnl'){ const av=propStats('azurevista','2026-09-01','2026-09-30'), as=propStats('azuresuite','2026-09-01','2026-09-30'); downloadCSV('pnl-report.csv',[{property:'Azurevista',revenue:av.revenue,expenses:av.expenses,otaCommission:av.otaComm,profit:av.profit},{property:'Azure Suite',revenue:as.revenue,expenses:as.expenses,otaCommission:as.otaComm,profit:as.profit}]); }
+    else if(type==='occupancy') downloadCSV('occupancy-report.csv', scopedRooms().map(r=>({id:r.id,property:r.property,number:r.number,status:r.status,rate:r.rate})));
+    else if(type==='inventory') downloadCSV('inventory-report.csv', scopedInventory().map(i=>({...i})));
+    toast('Report exported');
+  });
+}
+
+/* =========================================================
+   VIEW: STAFF
+========================================================= */
+function viewStaff(){
+  const staff = scopedStaff();
+  return `
+  <div class="page-head"><div><h1 class="page-title">Staff</h1><div class="page-sub">${staff.length} team members</div></div>
+    <button class="btn primary sm" id="st-add">+ Add staff</button></div>
+  <div class="panel"><div class="panel-body flush table-wrap">
+    <table><thead><tr><th>Name</th><th>Role</th><th>Property</th><th>Phone</th><th>Email</th><th>Joined</th><th>Status</th></tr></thead>
+    <tbody>${staff.map(s=>`<tr><td><strong>${esc(s.name)}</strong></td><td><span class="badge blue">${s.role}</span></td><td>${s.property==='all'?'All properties':propName(s.property)}</td><td>${esc(s.phone)}</td><td>${esc(s.email)}</td><td>${fmtDateShort(s.joined)}</td><td>${statusBadge(s.status==='Active'?'available':'blocked')}</td></tr>`).join('')}</tbody></table>
+  </div></div>`;
+}
+function events_staff(){
+  document.getElementById('st-add').onclick = ()=>{
+    const body = `<div class="form-grid">
+      <div class="f-field span2"><label>Name</label><input id="s-name"/></div>
+      <div class="f-field"><label>Role</label><select id="s-role">${ROLES.map(r=>`<option>${r}</option>`).join('')}</select></div>
+      <div class="f-field"><label>Property</label><select id="s-property"><option value="all">All properties</option><option value="azurevista">Azurevista</option><option value="azuresuite">Azure Suite</option></select></div>
+      <div class="f-field"><label>Phone</label><input id="s-phone"/></div>
+      <div class="f-field"><label>Email</label><input id="s-email"/></div>
+    </div>`;
+    openModal('Add staff member', body, `<button class="btn" id="s-cancel">Cancel</button><button class="btn primary" id="s-save">Add</button>`);
+    document.getElementById('s-cancel').onclick = closeModal;
+    document.getElementById('s-save').onclick = ()=>{
+      const name = document.getElementById('s-name').value.trim(); if(!name){ toast('Enter a name'); return; }
+      state.staff.push({id:uid('ST'),name,phone:document.getElementById('s-phone').value,email:document.getElementById('s-email').value,role:document.getElementById('s-role').value,property:document.getElementById('s-property').value,joined:todayStr(),status:'Active'});
+      persist(); closeModal(); toast('Staff member added'); render();
+    };
+  };
+}
+
+/* =========================================================
+   VIEW: NOTIFICATIONS (full page)
+========================================================= */
+function viewNotifications(){
+  const notifs = computeNotifications();
+  return `
+  <div class="page-head"><div><h1 class="page-title">Notifications</h1><div class="page-sub">${notifs.length} active alerts · ${propName(ui.property)}</div></div></div>
+  <div class="panel"><div class="panel-body flush">
+    ${notifs.length? notifs.map(n=>`<div class="notif-item"><div class="t">${esc(n.t)}</div><div class="m">${esc(n.m)}</div></div>`).join('') : `<div class="empty-state"><div class="es-t">All clear</div><div>Nothing needs your attention right now.</div></div>`}
+  </div></div>`;
+}
+
+/* =========================================================
+   VIEW: SETTINGS
+========================================================= */
+function viewSettings(){
+  const s = state.settings;
+  const isAdmin = auth.role === 'Admin';
+  return `
+  <div class="page-head"><div><h1 class="page-title">Settings</h1><div class="page-sub">Business, property, billing, room configuration &amp; portal passwords</div></div></div>
+  
+  <!-- Admin Password Management Section -->
+  ${isAdmin ? `
+  <div class="panel" style="border:1.5px solid var(--azure);margin-bottom:20px;">
+    <div class="panel-head" style="background:var(--azure-tint);">
+      <h3 style="color:var(--azure-deep);">🔐 Admin Portal Password &amp; Access Control</h3>
+      <span class="badge green">EXCLUSIVE ADMIN PRIVILEGE</span>
+    </div>
+    <div class="panel-body">
+      <p class="text-soft" style="font-size:12.5px;margin-bottom:14px;">
+        As <strong>Admin (Owner)</strong>, you can change, customize, or reset login passwords for all 3 user roles (Admin, Manager, and Receptionist).
+      </p>
+
+      <div class="form-grid cols-3" style="gap:14px;">
+        <div class="f-field">
+          <label style="font-weight:600;">🛡️ Admin / Owner Password</label>
+          <input id="set-pass-admin" type="password" value="${esc(getUserPassword('Admin'))}" placeholder="Admin Password"/>
+        </div>
+        <div class="f-field">
+          <label style="font-weight:600;">👔 Manager Password</label>
+          <input id="set-pass-manager" type="password" value="${esc(getUserPassword('Manager'))}" placeholder="Manager Password"/>
+        </div>
+        <div class="f-field">
+          <label style="font-weight:600;">🎧 Receptionist Password</label>
+          <input id="set-pass-reception" type="password" value="${esc(getUserPassword('Receptionist'))}" placeholder="Receptionist Password"/>
+        </div>
+      </div>
+
+      <div class="flex" style="justify-content:space-between;align-items:center;margin-top:14px;padding-top:12px;border-top:1px solid var(--line-soft);flex-wrap:wrap;gap:10px;">
+        <label class="flex gap-6" style="font-size:12px;cursor:pointer;">
+          <input type="checkbox" id="set-pass-show-toggle"/> Show passwords in plain text
+        </label>
+        <div class="flex gap-8">
+          <button class="btn sm danger" id="set-pass-reset-btn">Reset All Passwords to Default</button>
+          <button class="btn primary sm" id="set-pass-save-btn">Update Portal Passwords</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  ` : `
+  <div class="panel" style="border:1px solid var(--line);margin-bottom:20px;background:var(--paper);">
+    <div class="panel-body flex" style="gap:12px;">
+      <div style="font-size:24px;">🔒</div>
+      <div>
+        <div style="font-weight:600;font-size:13px;color:var(--ink);">Portal Password Control Restricted</div>
+        <div class="text-soft" style="font-size:12px;">Password management for Admin, Manager, and Receptionist portals can only be modified by the <strong>Admin (Owner)</strong> account.</div>
+      </div>
+    </div>
+  </div>
+  `}
+
+  <div class="grid-2">
+    <div class="panel"><div class="panel-head"><h3>Business settings</h3></div><div class="panel-body">
+      <div class="form-grid">
+        <div class="f-field span2"><label>Business name</label><input id="set-bizname" value="${esc(s.businessName)}"/></div>
+        <div class="f-field span2"><label>Owner email</label><input id="set-email" value="${esc(s.ownerEmail)}"/></div>
+        <div class="f-field span2"><label>Address</label><input id="set-address" value="${esc(s.address)}"/></div>
+      </div>
+    </div></div>
+    <div class="panel"><div class="panel-head"><h3>Tax settings</h3></div><div class="panel-body">
+      <div class="form-grid cols-3">
+        <div class="f-field"><label>CGST %</label><input id="set-cgst" type="number" value="${s.tax.cgst}"/></div>
+        <div class="f-field"><label>SGST %</label><input id="set-sgst" type="number" value="${s.tax.sgst}"/></div>
+        <div class="f-field"><label>IGST %</label><input id="set-igst" type="number" value="${s.tax.igst}"/></div>
+      </div>
+      <div class="f-hint" style="margin-top:8px;">Tax rates apply to all new invoices and check-out calculations. Nothing is hard-coded.</div>
+    </div></div>
+  </div>
+  <div class="grid-2">
+    <div class="panel"><div class="panel-head"><h3>Billing</h3></div><div class="panel-body">
+      <div class="form-grid">
+        <div class="f-field"><label>Invoice prefix</label><input id="set-invprefix" value="${esc(s.invoicePrefix)}"/></div>
+        <div class="f-field"><label>Next invoice number</label><input id="set-invseq" type="number" value="${state.invoiceSeq}"/></div>
+        <div class="f-field span2"><label>Invoice footer</label><textarea id="set-invfooter">${esc(s.invoiceFooter)}</textarea></div>
+        <div class="f-field span2"><label>Terms &amp; conditions</label><textarea id="set-terms">${esc(s.terms)}</textarea></div>
+      </div>
+    </div></div>
+    <div class="panel"><div class="panel-head"><h3>Property settings</h3></div><div class="panel-body">
+      ${Object.values(state.properties).map(p=>`
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line-soft);">
+          <strong>${esc(p.name)}</strong>
+          <div class="form-grid" style="margin-top:8px;">
+            <div class="f-field"><label>Check-in time</label><input data-p-checkin="${p.id}" type="time" value="${p.checkInTime}"/></div>
+            <div class="f-field"><label>Check-out time</label><input data-p-checkout="${p.id}" type="time" value="${p.checkOutTime}"/></div>
+            <div class="f-field span2"><label>GSTIN</label><input data-p-gstin="${p.id}" value="${esc(p.gstin)}"/></div>
+          </div>
+        </div>`).join('')}
+    </div></div>
+  </div>
+  <div class="panel"><div class="panel-head" style="display:flex;justify-content:space-between;align-items:center;">
+    <h3>Room Settings — Azurevista (Gorakhpur)</h3>
+    <button class="btn sm primary" id="set-add-room-vista">+ Add Room</button>
+  </div><div class="panel-body flush table-wrap">
+    <table><thead><tr><th>Room number</th><th>Type</th><th class="text-right">Rate (₹/night)</th></tr></thead>
+    <tbody>${state.rooms.map(r=>`<tr><td><input data-room-number="${r.id}" value="${esc(r.number)}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td><input data-room-type="${r.id}" value="${esc(r.type)}" style="width:140px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td class="text-right"><input data-room-rate="${r.id}" type="number" value="${r.rate}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;text-align:right;"/></td></tr>`).join('')}</tbody></table>
+  </div></div>
+
+  <div class="panel"><div class="panel-head" style="display:flex;justify-content:space-between;align-items:center;">
+    <h3>Unit / Apartment Settings — Azure Suite (Lucknow)</h3>
+    <button class="btn sm primary" id="set-add-unit-suite">+ Add Unit</button>
+  </div><div class="panel-body flush table-wrap">
+    <table><thead><tr><th>Unit name / number</th><th>Type</th><th class="text-right">Rate (₹/night)</th></tr></thead>
+    <tbody>${state.units.map(u=>`<tr><td><input data-unit-number="${u.id}" value="${esc(u.number)}" style="width:160px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td><input data-unit-type="${u.id}" value="${esc(u.type)}" style="width:160px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td class="text-right"><input data-unit-rate="${u.id}" type="number" value="${u.rate}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;text-align:right;"/></td></tr>`).join('')}</tbody></table>
+  </div></div>
+
+  <button class="btn primary" id="settings-save">Save all settings</button>
+  `;
+}
+function events_settings(){
+  const showToggle = document.getElementById('set-pass-show-toggle');
+  if(showToggle){
+    showToggle.onchange = ()=>{
+      const type = showToggle.checked ? 'text' : 'password';
+      ['set-pass-admin','set-pass-manager','set-pass-reception'].forEach(id=>{
+        const el = document.getElementById(id);
+        if(el) el.type = type;
+      });
+    };
+  }
+
+  const passSave = document.getElementById('set-pass-save-btn');
+  if(passSave){
+    passSave.onclick = ()=>{
+      const pAdmin = document.getElementById('set-pass-admin').value.trim();
+      const pMgr = document.getElementById('set-pass-manager').value.trim();
+      const pRec = document.getElementById('set-pass-reception').value.trim();
+
+      if(!pAdmin || !pMgr || !pRec){
+        toast('⚠️ Passwords cannot be empty!');
+        return;
+      }
+
+      setUserPassword('Admin', pAdmin);
+      setUserPassword('Manager', pMgr);
+      setUserPassword('Receptionist', pRec);
+
+      logAudit('Settings changed', 'all', 'Admin updated portal passwords');
+      persist();
+      toast('🔒 Portal passwords updated successfully!');
+      render();
+    };
+  }
+
+  const passReset = document.getElementById('set-pass-reset-btn');
+  if(passReset){
+    passReset.onclick = ()=>{
+      confirmAction('Reset Portal Passwords?', 'This will reset passwords for Admin (admin123), Manager (manager123), and Receptionist (reception123).', ()=>{
+        setUserPassword('Admin', 'admin123');
+        setUserPassword('Manager', 'manager123');
+        setUserPassword('Receptionist', 'reception123');
+        logAudit('Settings changed', 'all', 'Admin reset portal passwords to defaults');
+        persist();
+        closeModal();
+        toast('Passwords reset to default values.');
+        render();
+      });
+    };
+  }
+
+  const addVista = document.getElementById('set-add-room-vista');
+  if(addVista) addVista.onclick = ()=>{
+    const nextNum = (100 + state.rooms.length + 1).toString();
+    const newRoom = { id: uid('RM'), property: 'azurevista', number: nextNum, type: 'Deluxe', rate: 3200, status: 'available' };
+    state.rooms.push(newRoom);
+    persist();
+    toast(`Room ${nextNum} added to Azurevista`);
+    render();
+  };
+
+  const addSuite = document.getElementById('set-add-unit-suite');
+  if(addSuite) addSuite.onclick = ()=>{
+    const nextNum = 'Azure Suite ' + (state.units.length + 1);
+    const newUnit = { id: uid('UN'), property: 'azuresuite', number: nextNum, type: '2BHK Apartment', rate: 6500, status: 'available' };
+    state.units.push(newUnit);
+    persist();
+    toast(`${nextNum} added to Azure Suite`);
+    render();
+  };
+
+  document.getElementById('settings-save').onclick = ()=>{
+    const s = state.settings;
+    s.businessName = document.getElementById('set-bizname').value;
+    s.ownerEmail = document.getElementById('set-email').value;
+    s.address = document.getElementById('set-address').value;
+    s.tax = { cgst:+document.getElementById('set-cgst').value||0, sgst:+document.getElementById('set-sgst').value||0, igst:+document.getElementById('set-igst').value||0 };
+    s.invoicePrefix = document.getElementById('set-invprefix').value;
+    state.invoiceSeq = +document.getElementById('set-invseq').value||state.invoiceSeq;
+    s.invoiceFooter = document.getElementById('set-invfooter').value;
+    s.terms = document.getElementById('set-terms').value;
+    document.querySelectorAll('[data-p-checkin]').forEach(el=> state.properties[el.dataset.pCheckin].checkInTime = el.value);
+    document.querySelectorAll('[data-p-checkout]').forEach(el=> state.properties[el.dataset.pCheckout].checkOutTime = el.value);
+    document.querySelectorAll('[data-p-gstin]').forEach(el=> state.properties[el.dataset.pGstin].gstin = el.value);
+    document.querySelectorAll('[data-room-number]').forEach(el=>{ const r = state.rooms.find(x=>x.id===el.dataset.roomNumber); if(r) r.number = el.value; });
+    document.querySelectorAll('[data-room-type]').forEach(el=>{ const r = state.rooms.find(x=>x.id===el.dataset.roomType); if(r) r.type = el.value; });
+    document.querySelectorAll('[data-room-rate]').forEach(el=>{ const r = state.rooms.find(x=>x.id===el.dataset.roomRate); if(r) r.rate = +el.value||r.rate; });
+    document.querySelectorAll('[data-unit-number]').forEach(el=>{ const u = state.units.find(x=>x.id===el.dataset.unitNumber); if(u) u.number = el.value; });
+    document.querySelectorAll('[data-unit-type]').forEach(el=>{ const u = state.units.find(x=>x.id===el.dataset.unitType); if(u) u.type = el.value; });
+    document.querySelectorAll('[data-unit-rate]').forEach(el=>{ const u = state.units.find(x=>x.id===el.dataset.unitRate); if(u) u.rate = +el.value||u.rate; });
+    logAudit('Settings changed', 'all', 'Business/tax/room/unit settings'); persist(); toast('Settings saved'); render();
+  };
+}
+
+/* =========================================================
+   VIEW: GLOBAL SEARCH
+========================================================= */
+function viewSearch(){
+  const q = (ui.searchQuery||'').toLowerCase();
+  const bks = state.bookings.filter(b=> (b.id+b.guestName+b.mobile).toLowerCase().includes(q));
+  const gs = state.guests.filter(g=> (g.id+g.name+g.mobile+g.email).toLowerCase().includes(q));
+  const invs = state.invoices.filter(i=> (i.id+i.guestName).toLowerCase().includes(q));
+  const rms = state.rooms.concat(state.units).filter(r=> (r.number+'').toLowerCase().includes(q));
+  return `
+  <div class="page-head"><div><h1 class="page-title">Search results for "${esc(ui.searchQuery||'')}"</h1></div></div>
+  <div class="section-label" style="margin-top:0;">Bookings (${bks.length})</div>
+  <div class="panel"><div class="panel-body flush table-wrap"><table><tbody>${bks.length?bks.map(b=>`<tr><td>${b.id}</td><td>${esc(b.guestName)}</td><td>${roomLabel(b.roomId)}</td><td>${statusBadge(b.status)}</td><td><button class="btn sm" data-view-booking="${b.id}">View</button></td></tr>`).join(''):`<tr class="empty-row"><td>No matches.</td></tr>`}</tbody></table></div></div>
+  <div class="section-label">Guests (${gs.length})</div>
+  <div class="panel"><div class="panel-body flush table-wrap"><table><tbody>${gs.length?gs.map(g=>`<tr><td>${esc(g.name)}</td><td>${esc(g.mobile)}</td><td><button class="btn sm" data-view-guest="${g.id}">View</button></td></tr>`).join(''):`<tr class="empty-row"><td>No matches.</td></tr>`}</tbody></table></div></div>
+  <div class="section-label">Invoices (${invs.length})</div>
+  <div class="panel"><div class="panel-body flush table-wrap"><table><tbody>${invs.length?invs.map(i=>`<tr><td>${i.id}</td><td>${esc(i.guestName)}</td><td class="text-right">${fmtINR(i.total)}</td><td><button class="btn sm" data-print-invoice="${i.id}">Print</button></td></tr>`).join(''):`<tr class="empty-row"><td>No matches.</td></tr>`}</tbody></table></div></div>
+  <div class="section-label">Rooms / units (${rms.length})</div>
+  <div class="panel"><div class="panel-body flush table-wrap"><table><tbody>${rms.length?rms.map(r=>`<tr><td>${r.property==='azurevista'?'Room '+r.number:r.number}</td><td><span class="tag-prop ${r.property}">${propName(r.property)}</span></td><td>${statusBadge(r.status)}</td></tr>`).join(''):`<tr class="empty-row"><td>No matches.</td></tr>`}</tbody></table></div></div>
+  `;
+}
+function events_search(){
+  document.querySelectorAll('[data-view-booking]').forEach(el=> el.onclick = ()=> openBookingDetail(el.dataset.viewBooking));
+  document.querySelectorAll('[data-view-guest]').forEach(el=> el.onclick = ()=> openGuestProfile(el.dataset.viewGuest));
+  document.querySelectorAll('[data-print-invoice]').forEach(el=> el.onclick = ()=> openInvoicePrint(el.dataset.printInvoice));
+}
+
+/* =========================================================
+   BOOTSTRAP
+========================================================= */
+(async function init(){
+  await loadInitial();
+  render();
+  setInterval(updateNetStatus, 4000);
+})();
+
+</script>
+</body>
+</html>
