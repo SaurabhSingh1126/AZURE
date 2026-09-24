@@ -623,7 +623,7 @@ function bookingFoodTotal(b){
 function bookingTotalCharges(b){
   if(!b) return { nights:0, roomCharges:0, foodCharges:0, discount:0, gross:0, taxPct:0, tax:0, total:0, paid:0, balance:0 };
   const nights = nightsBetween(b.checkIn, b.checkOut);
-  const roomCharges = nights * (b.rate || 0);
+  const roomCharges = nights * (b.rate || 0) + (b._extra || 0);
   const foodCharges = bookingFoodTotal(b);
   const discount = b.discount || 0;
   const gross = Math.max(0, roomCharges + foodCharges - discount);
@@ -1316,9 +1316,12 @@ function openBookingDetail(id){
           <div class="section-label" style="margin-top:14px;">Payments Received</div>
           <div style="font-size:12px;">
             ${state.payments.filter(p=>p.bookingId===b.id).map(p=>`
-              <div class="flex" style="justify-content:space-between;padding:4px 0;border-bottom:1px dashed var(--line);">
-                <div><span>${fmtDateShort(p.date)}</span> · <span class="text-soft">${esc(p.method)}</span></div>
-                <div><strong style="color:var(--green)">${fmtINR(p.amount)}</strong></div>
+              <div class="flex" style="justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px dashed var(--line);">
+                <div><span>${fmtDateShort(p.date)}</span> · <span class="text-soft">${esc(p.method)}</span> ${p.notes?`<span class="text-soft">(${esc(p.notes)})</span>`:''}</div>
+                <div class="flex gap-8" style="align-items:center;">
+                  <strong style="color:var(--green)">${fmtINR(p.amount)}</strong>
+                  <button class="btn sm danger" style="padding:1px 5px;font-size:10px;" data-delete-payment="${p.id}" title="Delete payment">✕</button>
+                </div>
               </div>
             `).join('')}
           </div>
@@ -1371,22 +1374,18 @@ function openBookingDetail(id){
     };
   });
 
+  document.querySelectorAll('[data-delete-payment]').forEach(el => {
+    el.onclick = () => {
+      deletePayment(el.dataset.deletePayment, () => openBookingDetail(b.id));
+    };
+  });
+
   const ci = document.getElementById('bk-do-checkin'); if(ci) ci.onclick = ()=>{ closeModal(); ui.view='checkinout'; ui.selectedId=b.id; ui.workflow='checkin'; ui.step=0; render(); };
   const co = document.getElementById('bk-do-checkout'); if(co) co.onclick = ()=>{ closeModal(); ui.view='checkinout'; ui.selectedId=b.id; ui.workflow='checkout'; ui.step=0; render(); };
   const cancel = document.getElementById('bk-do-cancel'); if(cancel) cancel.onclick = ()=> confirmAction('Cancel this booking?', 'The room/unit will be released.', ()=>{
     b.status='cancelled'; const r=roomObj(b.roomId); if(r && r.status!=='occupied') r.status='available'; logAudit('Booking cancelled', b.property, b.id); persist(); closeModal(); toast('Booking cancelled'); render();
   });
 }
-
-const PRESET_FOOD_ITEMS = [
-  { name: 'Dinner Thali (Veg)', price: 180 },
-  { name: 'Dinner Thali (Non-Veg)', price: 250 },
-  { name: 'Breakfast & Tea', price: 120 },
-  { name: 'Special Tea / Coffee', price: 30 },
-  { name: 'Snacks / Starters', price: 150 },
-  { name: 'Mineral Water (1L)', price: 20 },
-  { name: 'Custom Food Charge', price: 0 }
-];
 
 function openAddFoodBillModal(bookingId){
   const openBks = state.bookings.filter(b=>!['cancelled','checked-out','no-show'].includes(b.status));
@@ -1402,41 +1401,18 @@ function openAddFoodBillModal(bookingId){
       </div>
 
       <div class="f-field span2">
-        <label>Quick Preset Food Item</label>
-        <select id="fb-preset">
-          <option value="">-- Choose preset or enter custom item below --</option>
-          ${PRESET_FOOD_ITEMS.map(i => `<option value="${i.name}" data-price="${i.price}">${i.name} ${i.price > 0 ? '(₹' + i.price + ')' : ''}</option>`).join('')}
-        </select>
-      </div>
-
-      <div class="f-field span2">
-        <label>Food Item / Order Description *</label>
-        <input id="fb-desc" placeholder="e.g. Dinner Thali x 2, Tea x 2" value="Dinner Thali"/>
+        <label>Item Name / Description *</label>
+        <input id="fb-desc" placeholder="e.g. Water bottle, Meal, Tea, Snacks, Laundry"/>
       </div>
 
       <div class="f-field">
-        <label>Quantity</label>
-        <input id="fb-qty" type="number" min="1" value="1"/>
-      </div>
-
-      <div class="f-field">
-        <label>Rate / Unit Price (₹)</label>
-        <input id="fb-price" type="number" min="0" value="200"/>
-      </div>
-
-      <div class="f-field">
-        <label>Total Food Bill Amount (₹) *</label>
-        <input id="fb-amount" type="number" min="1" value="200" style="font-weight:700;color:var(--azure);"/>
+        <label>Price / Amount (₹) *</label>
+        <input id="fb-amount" type="number" min="1" placeholder="e.g. 150" style="font-weight:700;color:var(--azure);"/>
       </div>
 
       <div class="f-field">
         <label>Date</label>
         <input id="fb-date" type="date" value="${todayStr()}"/>
-      </div>
-
-      <div class="f-field span2">
-        <label>Notes / Room Service Details</label>
-        <input id="fb-notes" placeholder="e.g. Delivered to Room 101 at 8:30 PM"/>
       </div>
     </div>
     <div id="fb-err"></div>
@@ -1444,37 +1420,13 @@ function openAddFoodBillModal(bookingId){
 
   const foot = `
     <button class="btn" id="fb-cancel">Cancel</button>
-    <button class="btn primary" id="fb-save">🍽️ Save &amp; Add Food Bill</button>
+    <button class="btn primary" id="fb-save">🍽️ Add Bill Item</button>
   `;
 
-  openModal('Add Food Bill for Booking', body, foot);
+  openModal('Add Food / Service Bill', body, foot);
 
-  const presetSel = document.getElementById('fb-preset');
   const descInp = document.getElementById('fb-desc');
-  const qtyInp = document.getElementById('fb-qty');
-  const priceInp = document.getElementById('fb-price');
   const amountInp = document.getElementById('fb-amount');
-
-  function updateFoodTotal(){
-    const q = Math.max(1, +qtyInp.value || 1);
-    const p = Math.max(0, +priceInp.value || 0);
-    amountInp.value = q * p;
-  }
-
-  presetSel.onchange = () => {
-    const opt = presetSel.options[presetSel.selectedIndex];
-    if(presetSel.value){
-      descInp.value = presetSel.value;
-      const price = +opt.dataset.price || 0;
-      if(price > 0){
-        priceInp.value = price;
-        updateFoodTotal();
-      }
-    }
-  };
-
-  qtyInp.oninput = updateFoodTotal;
-  priceInp.oninput = updateFoodTotal;
 
   document.getElementById('fb-cancel').onclick = closeModal;
 
@@ -1488,11 +1440,11 @@ function openAddFoodBillModal(bookingId){
     const desc = descInp.value.trim();
     const amount = +amountInp.value;
     if(!desc){
-      document.getElementById('fb-err').innerHTML = `<div class="err-msg">Enter food item / order description.</div>`;
+      document.getElementById('fb-err').innerHTML = `<div class="err-msg">Please enter item name / description (e.g. Water bottle, Meal).</div>`;
       return;
     }
     if(!amount || amount <= 0){
-      document.getElementById('fb-err').innerHTML = `<div class="err-msg">Enter a valid bill amount.</div>`;
+      document.getElementById('fb-err').innerHTML = `<div class="err-msg">Please enter a valid price/amount.</div>`;
       return;
     }
 
@@ -1503,11 +1455,10 @@ function openAddFoodBillModal(bookingId){
       bookingId: bId,
       property: b.property,
       description: desc,
-      quantity: +qtyInp.value || 1,
-      unitPrice: +priceInp.value || amount,
+      quantity: 1,
+      unitPrice: amount,
       amount,
       date: document.getElementById('fb-date').value || todayStr(),
-      notes: document.getElementById('fb-notes').value.trim(),
       addedBy: auth.user
     };
 
@@ -1519,9 +1470,11 @@ function openAddFoodBillModal(bookingId){
     logAudit('Food bill added', b.property, bId);
     persist();
     closeModal();
-    toast(`Food bill of ${fmtINR(amount)} added to booking ${bId}`);
+    toast(`Added bill item: ${desc} (₹${amount})`);
     render();
-    openBookingDetail(bId);
+    if(bookingId){
+      openBookingDetail(bookingId);
+    }
   };
 }
 
@@ -2045,20 +1998,20 @@ function advanceWorkflow(){
     } else {
       b.status='checked-out'; const r=roomObj(b.roomId); if(r) r.status='cleaning';
       state.housekeeping.push({id:uid('HK'),property:b.property,roomId:b.roomId,status:'dirty',assignedTo:'Unassigned',checkoutTime:new Date().toTimeString().slice(0,5),notes:'Auto-created on checkout'});
-      const nights = nightsBetween(b.checkIn,b.checkOut);
-      const gross = nights*b.rate-(b.discount||0)+(b._extra||0);
-      const taxPct = state.settings.tax.cgst+state.settings.tax.sgst+state.settings.tax.igst;
-      const tax = Math.round(gross*taxPct/100);
-      const total = gross+tax;
-      const paid = state.payments.filter(p=>p.bookingId===b.id).reduce((s,p)=>s+p.amount,0);
-      const balance = Math.max(0,total-paid);
-      if(balance>0){ state.payments.push({id:uid('TXN'),bookingId:b.id,property:b.property,amount:balance,method:document.getElementById('wf-method')?document.getElementById('wf-method').value:'Cash',date:todayStr(),notes:'Balance on checkout',addedBy:auth.user}); }
+      const charges = bookingTotalCharges(b);
+      const gross = charges.gross;
+      const tax = charges.tax;
+      const total = charges.total;
+      const paid = charges.paid;
+      const balance = charges.balance;
+      if(balance>0){ state.payments.push({id:uid('TXN'),bookingId:b.id,property:b.property,amount:balance,method:document.getElementById('wf-method')?document.getElementById('wf-method').value:'Cash',date:todayStr(),notes:'Checkout settlement — Room & Food Bills',addedBy:auth.user}); }
       b.payment='paid';
       const invNum = state.settings.invoicePrefix + String(state.invoiceSeq++).padStart(4,'0');
-      state.invoices.push({id:invNum,bookingId:b.id,property:b.property,guestName:b.guestName,date:todayStr(),subtotal:gross,discount:b.discount||0,tax,total,advance:paid,balance:0});
+      state.invoices.push({id:invNum,bookingId:b.id,property:b.property,guestName:b.guestName,date:todayStr(),roomCharges:charges.roomCharges,foodCharges:charges.foodCharges,subtotal:gross,discount:b.discount||0,tax,total,advance:paid+balance,balance:0});
       const g = guestObj(b.guestId); if(g){ g.totalStays++; g.totalSpend+=total; g.outstanding=Math.max(0,g.outstanding-balance); }
       logAudit('Check-out completed', b.property, b.id); logAudit('Invoice generated', b.property, invNum);
       persist(); toast('Check-out complete · Invoice '+invNum+' generated'); ui.selectedId=null; ui.workflow=null; render();
+      openInvoicePrint(invNum);
     }
     return;
   }
@@ -2074,24 +2027,56 @@ function viewInvoices(){
   <div class="page-head"><div><h1 class="page-title">Invoices</h1><div class="page-sub">${invs.length} invoice${invs.length!==1?'s':''}</div></div>
     <button class="btn sm" id="inv-export">Export CSV</button></div>
   <div class="panel"><div class="panel-body flush table-wrap">
-    <table><thead><tr><th>Invoice #</th><th>Booking</th><th>Property</th><th>Guest</th><th>Date</th><th class="text-right">Total</th><th class="text-right">Balance</th><th></th></tr></thead>
-    <tbody>${invs.length? invs.map(i=>`<tr>
-      <td><strong>${i.id}</strong></td><td>${i.bookingId}</td><td><span class="tag-prop ${i.property}">${propName(i.property)}</span></td>
-      <td>${esc(i.guestName)}</td><td>${fmtDateShort(i.date)}</td><td class="text-right">${fmtINR(i.total)}</td>
-      <td class="text-right" style="color:${i.balance>0?'var(--red)':'var(--green)'}">${fmtINR(i.balance)}</td>
-      <td><button class="btn sm" data-print-invoice="${i.id}">Print / PDF</button></td>
-    </tr>`).join('') : `<tr class="empty-row"><td colspan="8">No invoices yet — generated automatically at checkout.</td></tr>`}</tbody></table>
+    <table><thead><tr><th>Invoice #</th><th>Booking</th><th>Property</th><th>Guest</th><th>Date</th><th class="text-right">Total</th><th class="text-right">Balance</th><th class="text-right">Action</th></tr></thead>
+    <tbody>${invs.length? invs.map(i=>{
+      const b = bookingObj(i.bookingId);
+      const charges = b ? bookingTotalCharges(b) : null;
+      const invTotal = charges ? charges.total : i.total;
+      const invBalance = charges ? charges.balance : i.balance;
+      return `<tr>
+        <td><strong>${i.id}</strong></td><td>${i.bookingId}</td><td><span class="tag-prop ${i.property}">${propName(i.property)}</span></td>
+        <td>${esc(i.guestName)}</td><td>${fmtDateShort(i.date)}</td><td class="text-right">${fmtINR(invTotal)}</td>
+        <td class="text-right" style="color:${invBalance>0?'var(--red)':'var(--green)'}">${fmtINR(invBalance)}</td>
+        <td class="text-right flex gap-4" style="justify-content:flex-end;">
+          <button class="btn sm" data-print-invoice="${i.id}">Print / PDF</button>
+          <button class="btn sm danger" data-delete-invoice="${i.id}" title="Delete Invoice">🗑️ Delete</button>
+        </td>
+      </tr>`;
+    }).join('') : `<tr class="empty-row"><td colspan="8">No invoices yet — generated automatically at checkout.</td></tr>`}</tbody></table>
   </div></div>`;
 }
 function events_invoices(){
   const ex = document.getElementById('inv-export'); if(ex) ex.onclick = ()=> downloadCSV('invoices.csv', state.invoices.map(i=>({...i})));
   document.querySelectorAll('[data-print-invoice]').forEach(el=> el.onclick = ()=> openInvoicePrint(el.dataset.printInvoice));
+  document.querySelectorAll('[data-delete-invoice]').forEach(el=> el.onclick = ()=> deleteInvoice(el.dataset.deleteInvoice));
+}
+function deleteInvoice(id){
+  const inv = (state.invoices || []).find(i=>i.id===id); if(!inv) return;
+  confirmAction(`Delete Invoice ${inv.id}?`, `Are you sure you want to delete invoice ${inv.id} for ${inv.guestName}? This action cannot be undone.`, () => {
+    state.invoices = (state.invoices || []).filter(i => i.id !== id);
+    logAudit('Invoice deleted', inv.property, inv.id);
+    persist();
+    closeModal();
+    toast(`Invoice ${inv.id} deleted`);
+    render();
+  });
 }
 function openInvoicePrint(id){
   const inv = state.invoices.find(i=>i.id===id); if(!inv) return;
   const b = bookingObj(inv.bookingId);
-  const p = state.properties[inv.property];
-  const nights = b? nightsBetween(b.checkIn,b.checkOut) : 1;
+  const p = state.properties[inv.property] || state.properties['azurevista'];
+  const nights = b ? nightsBetween(b.checkIn,b.checkOut) : 1;
+  const foodBills = b ? bookingFoodBills(b) : [];
+  const foodTotal = b ? bookingFoodTotal(b) : (inv.foodCharges || 0);
+  const roomCharges = b ? (nights * (b.rate || 0) + (b._extra || 0)) : (inv.roomCharges || (inv.subtotal - foodTotal + (inv.discount || 0)));
+  const discount = (b && b.discount) !== undefined ? b.discount : (inv.discount || 0);
+  const gross = Math.max(0, roomCharges + foodTotal - discount);
+  const taxPct = (state.settings && state.settings.tax) ? (state.settings.tax.cgst + state.settings.tax.sgst + state.settings.tax.igst) : 12;
+  const tax = Math.round(gross * taxPct / 100);
+  const total = gross + tax;
+  const paid = (b && state.payments) ? state.payments.filter(pay => pay.bookingId === b.id).reduce((s, pay) => s + pay.amount, 0) : (inv.advance || total);
+  const balance = Math.max(0, total - paid);
+
   const body = `
     <div style="font-family:'Inter',sans-serif;">
       <div class="flex" style="justify-content:space-between;align-items:flex-start;margin-bottom:16px;">
@@ -2102,23 +2087,47 @@ function openInvoicePrint(id){
         <div><div class="text-soft">Guest</div><strong>${esc(inv.guestName)}</strong><div class="text-soft">${b?esc(b.mobile):''}</div></div>
         <div><div class="text-soft">Stay</div><strong>${b?roomLabel(b.roomId):''}</strong><div class="text-soft">${b?fmtDate(b.checkIn)+' → '+fmtDate(b.checkOut)+' ('+nights+' nights)':''}</div></div>
       </div>
-      <table><thead><tr><th>Description</th><th class="text-right">Qty</th><th class="text-right">Rate</th><th class="text-right">Amount</th></tr></thead>
+      <table><thead><tr><th>Description / Item</th><th class="text-right">Qty</th><th class="text-right">Rate</th><th class="text-right">Amount</th></tr></thead>
       <tbody>
-        <tr><td>Room/Unit charges</td><td class="text-right">${nights}</td><td class="text-right">${b?fmtINR(b.rate):''}</td><td class="text-right">${fmtINR(inv.subtotal+inv.discount)}</td></tr>
+        <tr>
+          <td>Accommodation — ${b ? roomLabel(b.roomId) : 'Room/Unit charges'}</td>
+          <td class="text-right">${nights}</td>
+          <td class="text-right">${b ? fmtINR(b.rate) : ''}</td>
+          <td class="text-right">${fmtINR(roomCharges)}</td>
+        </tr>
+        ${foodBills.length ? foodBills.map(fb => `
+          <tr>
+            <td>🍽️ Food: ${esc(fb.description)} <span class="text-soft">(${fmtDateShort(fb.date)})</span></td>
+            <td class="text-right">${fb.quantity || 1}</td>
+            <td class="text-right">${fmtINR(fb.unitPrice || fb.amount)}</td>
+            <td class="text-right">${fmtINR(fb.amount)}</td>
+          </tr>
+        `).join('') : (foodTotal > 0 ? `
+          <tr>
+            <td>🍽️ Food &amp; Beverage Charges</td>
+            <td class="text-right">1</td>
+            <td class="text-right">${fmtINR(foodTotal)}</td>
+            <td class="text-right">${fmtINR(foodTotal)}</td>
+          </tr>
+        ` : '')}
       </tbody></table>
       <table style="margin-top:10px;"><tbody>
-        <tr><td>Subtotal</td><td class="text-right">${fmtINR(inv.subtotal+inv.discount)}</td></tr>
-        <tr><td>Discount</td><td class="text-right">-${fmtINR(inv.discount)}</td></tr>
-        <tr><td>Tax</td><td class="text-right">${fmtINR(inv.tax)}</td></tr>
-        <tr><td><strong>Grand total</strong></td><td class="text-right"><strong>${fmtINR(inv.total)}</strong></td></tr>
-        <tr><td>Advance paid</td><td class="text-right">${fmtINR(inv.advance)}</td></tr>
-        <tr><td><strong>Balance due</strong></td><td class="text-right"><strong>${fmtINR(inv.balance)}</strong></td></tr>
+        <tr><td>Room Charges</td><td class="text-right">${fmtINR(roomCharges)}</td></tr>
+        ${foodTotal > 0 ? `<tr><td>Food &amp; Beverage Charges</td><td class="text-right">${fmtINR(foodTotal)}</td></tr>` : ''}
+        ${discount > 0 ? `<tr><td>Discount Applied</td><td class="text-right" style="color:var(--green);">-${fmtINR(discount)}</td></tr>` : ''}
+        <tr><td><strong>Subtotal (Taxable Amount)</strong></td><td class="text-right"><strong>${fmtINR(gross)}</strong></td></tr>
+        <tr><td>Tax (GST ${taxPct}%)</td><td class="text-right">${fmtINR(tax)}</td></tr>
+        <tr><td><strong>Grand Total</strong></td><td class="text-right"><strong>${fmtINR(total)}</strong></td></tr>
+        <tr><td>Advance / Amount Paid</td><td class="text-right" style="color:var(--green);">${fmtINR(paid)}</td></tr>
+        <tr><td><strong>Balance Due</strong></td><td class="text-right"><strong style="color:${balance>0?'var(--red)':'var(--green)'};">${fmtINR(balance)}</strong></td></tr>
       </tbody></table>
       <div class="text-soft" style="margin-top:16px;font-size:11.5px;">${esc(state.settings.invoiceFooter)}</div>
     </div>`;
-  const foot = `<button class="btn" id="inv-close">Close</button><button class="btn primary" id="inv-print">Print</button>`;
+  const foot = `<button class="btn" id="inv-close">Close</button><button class="btn danger" id="inv-delete">🗑️ Delete Invoice</button><button class="btn primary" id="inv-print">Print</button>`;
   openModal('Invoice preview', body, foot, true);
   document.getElementById('inv-close').onclick = closeModal;
+  const delBtn = document.getElementById('inv-delete');
+  if(delBtn) delBtn.onclick = () => deleteInvoice(inv.id);
   document.getElementById('inv-print').onclick = ()=> window.print();
 }
 
@@ -2145,8 +2154,9 @@ function viewPayments(){
       <td>${fmtDateShort(p.date)}</td>
       <td class="text-right"><strong>${fmtINR(p.amount)}</strong></td>
       <td class="text-soft">${esc(p.notes||'—')}</td>
-      <td class="text-right">
-        <button class="btn primary sm" data-print-payment-bill="${p.id}">📄 Generate Bill / Receipt</button>
+      <td class="text-right flex gap-4" style="justify-content:flex-end;">
+        <button class="btn primary sm" data-print-payment-bill="${p.id}">📄 Bill / Receipt</button>
+        <button class="btn sm danger" data-delete-payment="${p.id}" title="Delete Payment">🗑️ Delete</button>
       </td>
     </tr>`).join('') : `<tr class="empty-row"><td colspan="8">No payments recorded.</td></tr>`}</tbody></table>
   </div></div>`;
@@ -2161,8 +2171,35 @@ function events_payments(){
   document.querySelectorAll('[data-print-payment-bill]').forEach(el=> {
     el.onclick = ()=> openPaymentBillPrint(el.dataset.printPaymentBill);
   });
+  document.querySelectorAll('[data-delete-payment]').forEach(el=> {
+    el.onclick = ()=> deletePayment(el.dataset.deletePayment);
+  });
   document.querySelectorAll('[data-view-booking]').forEach(el=> {
     el.onclick = ()=> openBookingDetail(el.dataset.viewBooking);
+  });
+}
+
+function deletePayment(paymentId, onDone){
+  const p = (state.payments || []).find(x => x.id === paymentId);
+  if(!p) return;
+  confirmAction(`Delete payment ${p.id}?`, `Are you sure you want to delete payment of ${fmtINR(p.amount)} (${p.method})? This action cannot be undone.`, () => {
+    const bookingId = p.bookingId;
+    state.payments = (state.payments || []).filter(x => x.id !== paymentId);
+    const b = bookingObj(bookingId);
+    if(b){
+      const paid = (state.payments || []).filter(x => x.bookingId === b.id).reduce((s, x) => s + x.amount, 0);
+      if(paid <= 0) b.payment = 'unpaid';
+      else if(bookingBalance(b) <= 0) b.payment = 'paid';
+      else b.payment = 'partial';
+    }
+    logAudit('Payment deleted', p.property, p.id);
+    persist();
+    closeModal();
+    toast(`Payment ${p.id} deleted`);
+    render();
+    if(typeof onDone === 'function'){
+      onDone();
+    }
   });
 }
 
@@ -2297,11 +2334,14 @@ function openPaymentBillPrint(paymentId){
 
   const foot = `
     <button class="btn" id="pay-bill-close">Close</button>
+    <button class="btn danger" id="pay-bill-delete">🗑️ Delete Payment</button>
     <button class="btn primary" id="pay-bill-print">🖨️ Print / Save PDF</button>
   `;
 
   openModal('Payment Receipt & Bill — REC-' + p.id, body, foot, true);
   document.getElementById('pay-bill-close').onclick = closeModal;
+  const delBtn = document.getElementById('pay-bill-delete');
+  if(delBtn) delBtn.onclick = () => deletePayment(p.id);
   document.getElementById('pay-bill-print').onclick = ()=> window.print();
 }
 
@@ -3174,7 +3214,7 @@ function viewSearch(){
   <div class="section-label">Guests (${gs.length})</div>
   <div class="panel"><div class="panel-body flush table-wrap"><table><tbody>${gs.length?gs.map(g=>`<tr><td>${esc(g.name)}</td><td>${esc(g.mobile)}</td><td><button class="btn sm" data-view-guest="${g.id}">View</button></td></tr>`).join(''):`<tr class="empty-row"><td>No matches.</td></tr>`}</tbody></table></div></div>
   <div class="section-label">Invoices (${invs.length})</div>
-  <div class="panel"><div class="panel-body flush table-wrap"><table><tbody>${invs.length?invs.map(i=>`<tr><td>${i.id}</td><td>${esc(i.guestName)}</td><td class="text-right">${fmtINR(i.total)}</td><td><button class="btn sm" data-print-invoice="${i.id}">Print</button></td></tr>`).join(''):`<tr class="empty-row"><td>No matches.</td></tr>`}</tbody></table></div></div>
+  <div class="panel"><div class="panel-body flush table-wrap"><table><tbody>${invs.length?invs.map(i=>`<tr><td>${i.id}</td><td>${esc(i.guestName)}</td><td class="text-right">${fmtINR(i.total)}</td><td class="text-right flex gap-4" style="justify-content:flex-end;"><button class="btn sm" data-print-invoice="${i.id}">Print</button><button class="btn sm danger" data-delete-invoice="${i.id}" title="Delete Invoice">🗑️ Delete</button></td></tr>`).join(''):`<tr class="empty-row"><td>No matches.</td></tr>`}</tbody></table></div></div>
   <div class="section-label">Rooms / units (${rms.length})</div>
   <div class="panel"><div class="panel-body flush table-wrap"><table><tbody>${rms.length?rms.map(r=>`<tr><td>${r.property==='azurevista'?'Room '+r.number:r.number}</td><td><span class="tag-prop ${r.property}">${propName(r.property)}</span></td><td>${statusBadge(r.status)}</td></tr>`).join(''):`<tr class="empty-row"><td>No matches.</td></tr>`}</tbody></table></div></div>
   `;
@@ -3183,6 +3223,7 @@ function events_search(){
   document.querySelectorAll('[data-view-booking]').forEach(el=> el.onclick = ()=> openBookingDetail(el.dataset.viewBooking));
   document.querySelectorAll('[data-view-guest]').forEach(el=> el.onclick = ()=> openGuestProfile(el.dataset.viewGuest));
   document.querySelectorAll('[data-print-invoice]').forEach(el=> el.onclick = ()=> openInvoicePrint(el.dataset.printInvoice));
+  document.querySelectorAll('[data-delete-invoice]').forEach(el=> el.onclick = ()=> deleteInvoice(el.dataset.deleteInvoice));
 }
 
 /* =========================================================
