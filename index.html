@@ -290,10 +290,11 @@ function todayStr(){
   return `${y}-${m}-${d}`;
 }
 function uid(prefix){ return prefix + '-' + Math.random().toString(36).slice(2,8).toUpperCase(); }
+function canViewFinancialTotals(){
+  return auth && auth.loggedIn && auth.role === 'Admin';
+}
 function fmtINR(n){
-  if(!auth || !auth.loggedIn || auth.role !== 'Admin'){
-    return '₹ xxxx';
-  }
+  if(n == null || isNaN(n)) return '₹0';
   n = Math.round(Number(n)||0);
   return '₹' + n.toLocaleString('en-IN');
 }
@@ -522,9 +523,9 @@ async function loadInitial(){
    APP SHELL — auth, sidebar, topbar, modal, router
 ========================================================= */
 const SYSTEM_USERS = [
-  { role:'Admin', email:'admin@azurehospitality.in', username:'admin', pass:'admin123', name:'You (Owner / Admin)', icon:'🛡️', desc:'Full System & Finance Access' },
-  { role:'Manager', email:'manager@azurehospitality.in', username:'manager', pass:'manager123', name:'Neha Kapoor (Manager)', icon:'👔', desc:'Operations & Staff (Finance Hidden)' },
-  { role:'Receptionist', email:'reception@azurehospitality.in', username:'reception', pass:'reception123', name:'Sanjay Yadav (Receptionist)', icon:'🎧', desc:'Front Desk & Guests (Finance Hidden)' }
+  { role:'Admin', email:'admin@azurehospitality.in', username:'admin', pass:'admin123', name:'You (Owner / Admin)', icon:'🛡️', desc:'Full System & Financial Totals Access' },
+  { role:'Manager', email:'manager@azurehospitality.in', username:'manager', pass:'manager123', name:'Neha Kapoor (Manager)', icon:'👔', desc:'Full Portal Access (Total Revenue & Profit Hidden)' },
+  { role:'Receptionist', email:'reception@azurehospitality.in', username:'reception', pass:'reception123', name:'Sanjay Yadav (Receptionist)', icon:'🎧', desc:'Full Portal Access (Total Revenue & Profit Hidden)' }
 ];
 
 let auth = { loggedIn:false, user:null, role:null, email:null, rememberMe:false };
@@ -566,18 +567,6 @@ const NAV = [
 ];
 
 function getFilteredNav(){
-  const role = auth.role || 'Admin';
-  if(role === 'Admin') return NAV;
-  if(role === 'Manager') {
-    return NAV.filter(g => g.group !== 'Finance');
-  }
-  if(role === 'Receptionist') {
-    return NAV.filter(g => g.group !== 'Finance' && g.group !== 'Supply' && g.group !== 'Growth')
-              .map(g => ({
-                ...g,
-                items: g.items.filter(it => !['settings', 'staff'].includes(it.id))
-              })).filter(g => g.items.length > 0);
-  }
   return NAV;
 }
 
@@ -774,7 +763,6 @@ window.addEventListener('offline', ()=>{ updateNetStatus(); toast('You are offli
 
 function renderLogin(){
   const activePreset = SYSTEM_USERS.find(u => u.role === selectedLoginRole) || SYSTEM_USERS[0];
-  const currentPass = getUserPassword(activePreset.role);
   return `
   <div id="login-screen">
     <div class="login-card" style="max-width:440px;">
@@ -800,7 +788,7 @@ function renderLogin(){
 
       <div id="login-err"></div>
       <div class="f-field" style="margin-bottom:12px;"><label>Username / Email</label><input id="li-user" type="text" value="${esc(activePreset.email)}"/></div>
-      <div class="f-field" style="margin-bottom:6px;"><label>Password (Layer Protected)</label><input id="li-pass" type="password" value="${esc(currentPass)}"/></div>
+      <div class="f-field" style="margin-bottom:6px;"><label>Password (Required Every Time)</label><input id="li-pass" type="password" value="" placeholder="Enter ${esc(activePreset.role)} password"/></div>
       <div class="login-foot">
         <label class="flex gap-6" style="color:var(--ink-soft);"><input type="checkbox" id="li-remember"/> Remember session</label>
         <a href="#" id="li-forgot">Forgot password?</a>
@@ -823,6 +811,16 @@ function attachLoginEvents(){
     const inputPass = document.getElementById('li-pass').value;
     const errBox = document.getElementById('login-err');
 
+    const activePreset = SYSTEM_USERS.find(u => u.role === selectedLoginRole) || SYSTEM_USERS[0];
+
+    if(!inputPass){
+      errBox.innerHTML = `
+        <div style="background:var(--red-tint);color:var(--red);padding:9px 12px;border-radius:4px;margin-bottom:12px;font-size:12px;line-height:1.4;">
+          ⚠️ <strong>Password Required</strong>: Please enter password for the <strong>${esc(activePreset.role)}</strong> layer.
+        </div>`;
+      return;
+    }
+
     const matched = SYSTEM_USERS.find(u => {
       const expectedPass = getUserPassword(u.role);
       return (u.email.toLowerCase() === inputUser || u.username.toLowerCase() === inputUser) &&
@@ -832,8 +830,7 @@ function attachLoginEvents(){
     if(!matched){
       errBox.innerHTML = `
         <div style="background:var(--red-tint);color:var(--red);padding:9px 12px;border-radius:4px;margin-bottom:12px;font-size:12px;line-height:1.4;">
-          ⚠️ <strong>Access Denied</strong>: Invalid username or password for this layer.<br/>
-          <em>Current Passwords:</em> <code>${esc(getUserPassword('Admin'))}</code> (Admin), <code>${esc(getUserPassword('Manager'))}</code> (Manager), <code>${esc(getUserPassword('Receptionist'))}</code> (Receptionist).
+          ⚠️ <strong>Access Denied</strong>: Invalid password entered for the <strong>${esc(activePreset.role)}</strong> layer.
         </div>`;
       return;
     }
@@ -857,23 +854,6 @@ function attachLoginEvents(){
 }
 
 function renderView(){
-  // Guard access to Finance for Non-Admin roles
-  if(['invoices','payments','expenses'].includes(ui.view) && auth.role !== 'Admin'){
-    return `
-    <div class="panel" style="max-width:580px;margin:40px auto;text-align:center;padding:40px 24px;">
-      <div style="font-size:48px;margin-bottom:12px;">🔒</div>
-      <h2 class="serif" style="margin-bottom:8px;color:var(--red);">Finance Module Restricted</h2>
-      <p style="color:var(--ink-soft);font-size:13.5px;max-width:460px;margin:0 auto 20px;line-height:1.5;">
-        Financial transactions, invoices, payment entries, and expense ledgers are password protected and strictly restricted to <strong>Admin</strong> access.<br/>
-        Your current active layer is <strong>${esc(auth.role)}</strong>.
-      </p>
-      <div style="display:flex;gap:10px;justify-content:center;">
-        <button class="btn primary" onclick="ui.view='dashboard';render();">Back to Dashboard</button>
-        <button class="btn" onclick="auth={loggedIn:false,user:null,role:null};render();">Switch to Admin Login</button>
-      </div>
-    </div>`;
-  }
-
   switch(ui.view){
     case 'dashboard': return viewDashboard();
     case 'bookings': return viewBookings();
@@ -949,6 +929,7 @@ function viewDashboard(){
   const as = propStats('azuresuite','2026-09-01','2026-09-30');
   const totalRev = av.revenue+as.revenue, totalExp = av.expenses+as.expenses, totalProfit = av.profit+as.profit;
   const notifs = computeNotifications();
+  const canFin = canViewFinancialTotals();
   return `
   <div class="page-head">
     <div><h1 class="page-title">Good morning — here's how the business is doing</h1>
@@ -966,9 +947,9 @@ function viewDashboard(){
     <div class="kpi"><div class="lbl">Check-ins</div><div class="val">${k.checkins}</div></div>
     <div class="kpi"><div class="lbl">Check-outs</div><div class="val">${k.checkouts}</div></div>
     <div class="kpi"><div class="lbl">New bookings</div><div class="val">${k.newBookings}</div></div>
-    <div class="kpi"><div class="lbl">Revenue</div><div class="val small">${fmtINR(k.revenue)}</div></div>
+    <div class="kpi"><div class="lbl">Revenue</div><div class="val small">${canFin ? fmtINR(k.revenue) : '🔒 Hidden'}</div></div>
     <div class="kpi"><div class="lbl">Expenses</div><div class="val small">${fmtINR(k.expenses)}</div></div>
-    <div class="kpi"><div class="lbl">Net revenue</div><div class="val small">${fmtINR(k.net)}</div></div>
+    <div class="kpi"><div class="lbl">Net revenue</div><div class="val small">${canFin ? fmtINR(k.net) : '🔒 Hidden'}</div></div>
     <div class="kpi"><div class="lbl">Pending payments</div><div class="val small" style="color:${k.pending>0?'var(--red)':'inherit'}">${fmtINR(k.pending)}</div></div>
   </div>
 
@@ -984,10 +965,10 @@ function viewDashboard(){
 
   <div class="section-label">Financial (this month)</div>
   <div class="kpi-row">
-    <div class="kpi"><div class="lbl">This month's revenue</div><div class="val small">${fmtINR(totalRev)}</div></div>
+    <div class="kpi"><div class="lbl">This month's revenue</div><div class="val small">${canFin ? fmtINR(totalRev) : '🔒 Hidden'}</div></div>
     <div class="kpi"><div class="lbl">This month's expenses</div><div class="val small">${fmtINR(totalExp)}</div></div>
     <div class="kpi"><div class="lbl">OTA commissions</div><div class="val small">${fmtINR(av.otaComm+as.otaComm)}</div></div>
-    <div class="kpi"><div class="lbl">Net profit</div><div class="val small" style="color:${totalProfit>=0?'var(--green)':'var(--red)'}">${fmtINR(totalProfit)}</div></div>
+    <div class="kpi"><div class="lbl">Net profit</div><div class="val small" style="color:${totalProfit>=0?'var(--green)':'var(--red)'}">${canFin ? fmtINR(totalProfit) : '🔒 Hidden'}</div></div>
   </div>
 
   <div class="grid-2" style="margin-top:24px;">
@@ -998,10 +979,10 @@ function viewDashboard(){
           <thead><tr><th>Metric</th><th class="text-right">Azurevista</th><th class="text-right">Azure Suite</th><th class="text-right">Total</th></tr></thead>
           <tbody>
             <tr><td>Bookings</td><td class="text-right">${av.bookingsCount}</td><td class="text-right">${as.bookingsCount}</td><td class="text-right">${av.bookingsCount+as.bookingsCount}</td></tr>
-            <tr><td>Revenue</td><td class="text-right">${fmtINR(av.revenue)}</td><td class="text-right">${fmtINR(as.revenue)}</td><td class="text-right">${fmtINR(totalRev)}</td></tr>
+            <tr><td>Revenue</td><td class="text-right">${canFin ? fmtINR(av.revenue) : '🔒 Hidden'}</td><td class="text-right">${canFin ? fmtINR(as.revenue) : '🔒 Hidden'}</td><td class="text-right">${canFin ? fmtINR(totalRev) : '🔒 Hidden'}</td></tr>
             <tr><td>Expenses</td><td class="text-right">${fmtINR(av.expenses)}</td><td class="text-right">${fmtINR(as.expenses)}</td><td class="text-right">${fmtINR(totalExp)}</td></tr>
             <tr><td>OTA commission</td><td class="text-right">${fmtINR(av.otaComm)}</td><td class="text-right">${fmtINR(as.otaComm)}</td><td class="text-right">${fmtINR(av.otaComm+as.otaComm)}</td></tr>
-            <tr><td>Profit</td><td class="text-right">${fmtINR(av.profit)}</td><td class="text-right">${fmtINR(as.profit)}</td><td class="text-right">${fmtINR(totalProfit)}</td></tr>
+            <tr><td>Profit</td><td class="text-right">${canFin ? fmtINR(av.profit) : '🔒 Hidden'}</td><td class="text-right">${canFin ? fmtINR(as.profit) : '🔒 Hidden'}</td><td class="text-right">${canFin ? fmtINR(totalProfit) : '🔒 Hidden'}</td></tr>
             <tr><td>Occupancy</td><td class="text-right">${av.occPct}%</td><td class="text-right">${as.occPct}%</td><td class="text-right">${Math.round((av.occPct+as.occPct)/2)}%</td></tr>
           </tbody>
         </table></div>
@@ -1009,14 +990,14 @@ function viewDashboard(){
     </div>
     <div class="panel">
       <div class="panel-head"><h3>Revenue by booking source</h3></div>
-      <div class="panel-body"><canvas id="chart-source" height="200"></canvas></div>
+      <div class="panel-body">${canFin ? `<canvas id="chart-source" height="200"></canvas>` : `<div class="empty-state" style="padding:40px;"><div class="es-t">🔒 Restricted</div><div>Revenue breakdown charts are Admin-only.</div></div>`}</div>
     </div>
   </div>
 
   <div class="grid-2">
     <div class="panel">
       <div class="panel-head"><h3>Revenue vs expenses — by property</h3></div>
-      <div class="panel-body"><canvas id="chart-revexp" height="210"></canvas></div>
+      <div class="panel-body">${canFin ? `<canvas id="chart-revexp" height="210"></canvas>` : `<div class="empty-state" style="padding:40px;"><div class="es-t">🔒 Restricted</div><div>Revenue & Profit comparison charts are Admin-only.</div></div>`}</div>
     </div>
     <div class="panel">
       <div class="panel-head"><h3>Alerts</h3></div>
@@ -1032,9 +1013,9 @@ function viewDashboard(){
       <div class="panel-body">
         <div class="kpi-row" style="grid-template-columns:repeat(2,1fr);">
           <div class="kpi"><div class="lbl">Occupancy</div><div class="val">${av.occPct}%</div></div>
-          <div class="kpi"><div class="lbl">Revenue</div><div class="val small">${fmtINR(av.revenue)}</div></div>
+          <div class="kpi"><div class="lbl">Revenue</div><div class="val small">${canFin ? fmtINR(av.revenue) : '🔒 Hidden'}</div></div>
           <div class="kpi"><div class="lbl">Expenses</div><div class="val small">${fmtINR(av.expenses)}</div></div>
-          <div class="kpi"><div class="lbl">Profit</div><div class="val small">${fmtINR(av.profit)}</div></div>
+          <div class="kpi"><div class="lbl">Profit</div><div class="val small">${canFin ? fmtINR(av.profit) : '🔒 Hidden'}</div></div>
         </div>
       </div>
     </div>
@@ -1043,9 +1024,9 @@ function viewDashboard(){
       <div class="panel-body">
         <div class="kpi-row" style="grid-template-columns:repeat(2,1fr);">
           <div class="kpi"><div class="lbl">Occupancy</div><div class="val">${as.occPct}%</div></div>
-          <div class="kpi"><div class="lbl">Revenue</div><div class="val small">${fmtINR(as.revenue)}</div></div>
+          <div class="kpi"><div class="lbl">Revenue</div><div class="val small">${canFin ? fmtINR(as.revenue) : '🔒 Hidden'}</div></div>
           <div class="kpi"><div class="lbl">Expenses</div><div class="val small">${fmtINR(as.expenses)}</div></div>
-          <div class="kpi"><div class="lbl">Profit</div><div class="val small">${fmtINR(as.profit)}</div></div>
+          <div class="kpi"><div class="lbl">Profit</div><div class="val small">${canFin ? fmtINR(as.profit) : '🔒 Hidden'}</div></div>
         </div>
       </div>
     </div>
@@ -1058,6 +1039,7 @@ function events_dashboard(){
   const nb = document.getElementById('dash-new-booking');
   if(nb) nb.onclick = openBookingModal;
   destroyCharts();
+  if(!canViewFinancialTotals()) return;
   const srcCanvas = document.getElementById('chart-source');
   if(srcCanvas){
     const bySource = {};
@@ -1779,8 +1761,8 @@ function viewProperties(){
           <div class="kpi-row" style="grid-template-columns:repeat(2,1fr);margin-bottom:10px;">
             <div class="kpi"><div class="lbl">${p.id==='azurevista'?'Rooms':'Units'}</div><div class="val">${unitCount}</div></div>
             <div class="kpi"><div class="lbl">Occupancy</div><div class="val">${st.occPct}%</div></div>
-            <div class="kpi"><div class="lbl">Revenue (Sep)</div><div class="val small">${fmtINR(st.revenue)}</div></div>
-            <div class="kpi"><div class="lbl">Profit (Sep)</div><div class="val small">${fmtINR(st.profit)}</div></div>
+            <div class="kpi"><div class="lbl">Revenue (Sep)</div><div class="val small">${canViewFinancialTotals() ? fmtINR(st.revenue) : '🔒 Hidden'}</div></div>
+            <div class="kpi"><div class="lbl">Profit (Sep)</div><div class="val small">${canViewFinancialTotals() ? fmtINR(st.profit) : '🔒 Hidden'}</div></div>
           </div>
           <div class="flex gap-8">
             <button class="btn sm" data-goto-rooms="${p.id}">View rooms/units</button>
@@ -2922,11 +2904,14 @@ function viewReports(){
   </div>
   <div class="panel"><div class="panel-head"><h3>Profit &amp; Loss — September 2026</h3></div><div class="panel-body flush">
     ${(()=>{ const av=propStats('azurevista','2026-09-01','2026-09-30'), as=propStats('azuresuite','2026-09-01','2026-09-30');
+      const canFin = canViewFinancialTotals();
       const rows = [
-        ['Gross revenue', av.revenue+as.revenue],['OTA commission', -(av.otaComm+as.otaComm)],
-        ['Operating expenses', -(av.expenses+as.expenses)],['Net operating profit', av.profit+as.profit]
+        ['Gross revenue', canFin ? fmtINR(av.revenue+as.revenue) : '🔒 Hidden'],
+        ['OTA commission', fmtINR(-(av.otaComm+as.otaComm))],
+        ['Operating expenses', fmtINR(-(av.expenses+as.expenses))],
+        ['Net operating profit', canFin ? fmtINR(av.profit+as.profit) : '🔒 Hidden']
       ];
-      return `<table><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td class="text-right" style="font-weight:${r[0].includes('Net')?'700':'400'}">${fmtINR(r[1])}</td></tr>`).join('')}</tbody></table>`;
+      return `<table><tbody>${rows.map(r=>`<tr><td>${r[0]}</td><td class="text-right" style="font-weight:${r[0].includes('Net')?'700':'400'}">${r[1]}</td></tr>`).join('')}</tbody></table>`;
     })()}
   </div></div>`;
 }
@@ -2935,9 +2920,15 @@ function events_reports(){
     const type = el.dataset.report;
     if(type==='bookings') downloadCSV('bookings-report.csv', scopedBookings().map(b=>({id:b.id,property:b.property,guest:b.guestName,checkIn:b.checkIn,checkOut:b.checkOut,status:b.status,source:b.source})));
     else if(type==='cancellations') downloadCSV('cancellations-report.csv', scopedBookings().filter(b=>['cancelled','no-show'].includes(b.status)).map(b=>({id:b.id,guest:b.guestName,status:b.status,date:b.checkIn})));
-    else if(type==='revenue') downloadCSV('revenue-report.csv', scopedBookings().map(b=>({id:b.id,property:b.property,source:b.source,revenue:nightsBetween(b.checkIn,b.checkOut)*b.rate-(b.discount||0)})));
+    else if(type==='revenue'){
+      if(!canViewFinancialTotals()){ toast('Revenue report export is restricted to Admin access.'); return; }
+      downloadCSV('revenue-report.csv', scopedBookings().map(b=>({id:b.id,property:b.property,source:b.source,revenue:nightsBetween(b.checkIn,b.checkOut)*b.rate-(b.discount||0)})));
+    }
     else if(type==='expenses') downloadCSV('expenses-report.csv', scopedExpenses().map(e=>({...e})));
-    else if(type==='pnl'){ const av=propStats('azurevista','2026-09-01','2026-09-30'), as=propStats('azuresuite','2026-09-01','2026-09-30'); downloadCSV('pnl-report.csv',[{property:'Azurevista',revenue:av.revenue,expenses:av.expenses,otaCommission:av.otaComm,profit:av.profit},{property:'Azure Suite',revenue:as.revenue,expenses:as.expenses,otaCommission:as.otaComm,profit:as.profit}]); }
+    else if(type==='pnl'){
+      if(!canViewFinancialTotals()){ toast('Profit & Loss report export is restricted to Admin access.'); return; }
+      const av=propStats('azurevista','2026-09-01','2026-09-30'), as=propStats('azuresuite','2026-09-01','2026-09-30'); downloadCSV('pnl-report.csv',[{property:'Azurevista',revenue:av.revenue,expenses:av.expenses,otaCommission:av.otaComm,profit:av.profit},{property:'Azure Suite',revenue:as.revenue,expenses:as.expenses,otaCommission:as.otaComm,profit:as.profit}]);
+    }
     else if(type==='occupancy') downloadCSV('occupancy-report.csv', scopedRooms().map(r=>({id:r.id,property:r.property,number:r.number,status:r.status,rate:r.rate})));
     else if(type==='inventory') downloadCSV('inventory-report.csv', scopedInventory().map(i=>({...i})));
     toast('Report exported');
