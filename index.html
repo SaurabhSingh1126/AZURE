@@ -1302,7 +1302,7 @@ function openBookingModal(prefill){
         <option value="azurevista" ${prop==='azurevista'?'selected':''}>Azurevista — Gorakhpur</option>
         <option value="azuresuite" ${prop==='azuresuite'?'selected':''}>Azure Suite — Lucknow</option>
       </select></div>
-      <div class="f-field"><label>Room / Unit</label><select id="f-room">${rooms.map(r=>`<option value="${r.id}">${r.property==='azurevista'?'Room '+r.number+' — '+r.type:r.number} (${fmtINR(r.rate)}/night)</option>`).join('')}</select></div>
+      <div class="f-field"><label>Room / Unit</label><select id="f-room">${rooms.map(r=>`<option value="${r.id}">${r.property==='azurevista'?'Room '+r.number+' — '+r.type:r.number}</option>`).join('')}</select></div>
       <div class="f-field span2"><label>Guest name</label><input id="f-guestname" placeholder="Full name"/></div>
       <div class="f-field"><label>Mobile number</label><input id="f-mobile" placeholder="98XXXXXXXX"/></div>
       <div class="f-field"><label>Email</label><input id="f-email" placeholder="guest@example.com"/></div>
@@ -1310,7 +1310,7 @@ function openBookingModal(prefill){
       <div class="f-field"><label>Children</label><input id="f-children" type="number" min="0" value="0"/></div>
       <div class="f-field"><label>Check-in date</label><input id="f-checkin" type="date" value="${todayStr()}"/></div>
       <div class="f-field"><label>Check-out date</label><input id="f-checkout" type="date" value="${addDays(todayStr(),1)}"/></div>
-      <div class="f-field"><label>Room/unit rate (₹/night)</label><input id="f-rate" type="number" value="${rooms[0]?rooms[0].rate:0}"/></div>
+      <div class="f-field"><label>Room/unit rate (₹)</label><input id="f-rate" type="number" placeholder="Write room rate manually (₹)"/></div>
       <div class="f-field"><label>Discount (₹)</label><input id="f-discount" type="number" value="0"/></div>
       <div class="f-field"><label>Advance payment (₹)</label><input id="f-advance" type="number" value="0"/></div>
       <div class="f-field"><label>Booking source</label><select id="f-source">${BOOKING_SOURCES.map(s=>`<option>${s}</option>`).join('')}</select></div>
@@ -1323,11 +1323,10 @@ function openBookingModal(prefill){
   const roomSel = document.getElementById('f-room'), rateInp = document.getElementById('f-rate'), propSel = document.getElementById('f-property');
   function refreshRooms(){
     const rs = availableRoomsForProperty(propSel.value);
-    roomSel.innerHTML = rs.map(r=>`<option value="${r.id}">${r.property==='azurevista'?'Room '+r.number+' — '+r.type:r.number} (${fmtINR(r.rate)}/night)</option>`).join('');
-    if(rs[0]) rateInp.value = rs[0].rate;
+    roomSel.innerHTML = rs.map(r=>`<option value="${r.id}">${r.property==='azurevista'?'Room '+r.number+' — '+r.type:r.number}</option>`).join('');
   }
   propSel.onchange = refreshRooms;
-  roomSel.onchange = ()=>{ const r = rooms.concat(state.rooms,state.units).find(x=>x.id===roomSel.value); if(r) rateInp.value = r.rate; };
+
   document.getElementById('bk-cancel').onclick = closeModal;
   document.getElementById('bk-save').onclick = async ()=>{
     const name = document.getElementById('f-guestname').value.trim();
@@ -1774,8 +1773,9 @@ function openEditBookingModal(bookingId){
       <div class="f-field span2"><label>Guest name</label><input id="eb-guestname" value="${esc(b.guestName)}"/></div>
       <div class="f-field"><label>Mobile number</label><input id="eb-mobile" value="${esc(b.mobile)}"/></div>
       <div class="f-field"><label>Email</label><input id="eb-email" value="${esc(b.email||'')}"/></div>
-      <div class="f-field"><label>Room / Unit</label><select id="eb-room">${rooms.map(r=>`<option value="${r.id}" ${r.id===b.roomId?'selected':''}>${r.property==='azurevista'?'Room '+r.number+' — '+r.type:r.number} (${fmtINR(r.rate)}/night)</option>`).join('')}</select></div>
-      <div class="f-field"><label>Rate (₹/night)</label><input id="eb-rate" type="number" value="${b.rate}"/></div>
+      <div class="f-field"><label>Room / Unit</label><select id="eb-room">${rooms.map(r=>`<option value="${r.id}" ${r.id===b.roomId?'selected':''}>${r.property==='azurevista'?'Room '+r.number+' — '+r.type:r.number}</option>`).join('')}</select></div>
+      <div class="f-field"><label>Rate (₹)</label><input id="eb-rate" type="number" value="${b.rate}"/></div>
+
       <div class="f-field"><label>Check-in date</label><input id="eb-checkin" type="date" value="${b.checkIn}"/></div>
       <div class="f-field"><label>Check-out date</label><input id="eb-checkout" type="date" value="${b.checkOut}"/></div>
       <div class="f-field"><label>Discount (₹)</label><input id="eb-discount" type="number" value="${b.discount||0}"/></div>
@@ -1965,7 +1965,8 @@ function viewRooms(){
       <div class="rc-top"><span class="rc-num">${r.property==='azurevista'?'Room '+r.number:r.number}</span>${statusBadge(r.status)}</div>
       <div class="rc-body">
         <div>Type: <strong>${esc(r.type)}</strong></div>
-        <div>Rate: <strong>${fmtINR(r.rate)}/night</strong></div>
+        <div>Rate: <strong>Manual (Set per booking)</strong></div>
+
         ${disp? `<div>Guest: <strong>${esc(disp.guestName)}</strong></div><div>Stay: <strong>${fmtDateShort(disp.checkIn)} → ${fmtDateShort(disp.checkOut)}</strong></div><div>Source: <strong>${esc(disp.source)}</strong></div><div>Payment: ${statusBadge(disp.payment)}</div>` : `<div class="text-soft">No current guest</div>`}
       </div>
       <div class="rc-foot">
@@ -3191,7 +3192,8 @@ function events_ota(){
         <div class="f-field">
           <label>Select Room to Reassign iCal Guest:</label>
           <select id="cr-room">
-            ${availableRooms.map(r => `<option value="${r.id}">${r.number} (${r.type}) — ${fmtINR(r.rate)}/night</option>`).join('')}
+            ${availableRooms.map(r => `<option value="${r.id}">${r.number} (${r.type})</option>`).join('')}
+
           </select>
         </div>
       `;
