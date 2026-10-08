@@ -2,5 +2,18 @@
   "name": "azure-hospitality",
   "version": "1.0.0",
   "private": true,
-  "description": "Azure Hospitality Multi-Property Management System"
+  "description": "Azure Hospitality Multi-Property Management System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.6",
+    "express": "^5.2.1",
+    "mongoose": "^9.11.1",
+    "node-cron": "^4.6.0",
+    "ws": "^8.22.0"
+  }
 }
