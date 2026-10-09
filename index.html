@@ -3545,16 +3545,16 @@ function viewSettings(){
     <h3>Room Settings — Azurevista (Gorakhpur)</h3>
     <button class="btn sm primary" id="set-add-room-vista">+ Add Room</button>
   </div><div class="panel-body flush table-wrap">
-    <table><thead><tr><th>Room number</th><th>Type</th><th class="text-right">Rate (₹/night)</th></tr></thead>
-    <tbody>${state.rooms.map(r=>`<tr><td><input data-room-number="${r.id}" value="${esc(r.number)}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td><input data-room-type="${r.id}" value="${esc(r.type)}" style="width:140px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td class="text-right"><input data-room-rate="${r.id}" type="number" value="${r.rate}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;text-align:right;"/></td></tr>`).join('')}</tbody></table>
+    <table><thead><tr><th>Room number</th><th>Type</th><th class="text-right">Default Rate (₹) (Optional)</th><th class="text-right">Action</th></tr></thead>
+    <tbody>${state.rooms.map(r=>`<tr><td><input data-room-number="${r.id}" value="${esc(r.number)}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td><input data-room-type="${r.id}" value="${esc(r.type)}" style="width:140px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td class="text-right"><input data-room-rate="${r.id}" type="number" placeholder="Optional" value="${r.rate||''}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;text-align:right;"/></td><td class="text-right"><button class="btn sm danger" data-delete-room="${r.id}">🗑️ Delete Room</button></td></tr>`).join('')}</tbody></table>
   </div></div>
 
   <div class="panel"><div class="panel-head" style="display:flex;justify-content:space-between;align-items:center;">
     <h3>Unit / Apartment Settings — Azure Suite (Lucknow)</h3>
     <button class="btn sm primary" id="set-add-unit-suite">+ Add Unit</button>
   </div><div class="panel-body flush table-wrap">
-    <table><thead><tr><th>Unit name / number</th><th>Type</th><th class="text-right">Rate (₹/night)</th></tr></thead>
-    <tbody>${state.units.map(u=>`<tr><td><input data-unit-number="${u.id}" value="${esc(u.number)}" style="width:160px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td><input data-unit-type="${u.id}" value="${esc(u.type)}" style="width:160px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td class="text-right"><input data-unit-rate="${u.id}" type="number" value="${u.rate}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;text-align:right;"/></td></tr>`).join('')}</tbody></table>
+    <table><thead><tr><th>Unit name / number</th><th>Type</th><th class="text-right">Default Rate (₹) (Optional)</th><th class="text-right">Action</th></tr></thead>
+    <tbody>${state.units.map(u=>`<tr><td><input data-unit-number="${u.id}" value="${esc(u.number)}" style="width:160px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td><input data-unit-type="${u.id}" value="${esc(u.type)}" style="width:160px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td class="text-right"><input data-unit-rate="${u.id}" type="number" placeholder="Optional" value="${u.rate||''}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;text-align:right;"/></td><td class="text-right"><button class="btn sm danger" data-delete-unit="${u.id}">🗑️ Delete Unit</button></td></tr>`).join('')}</tbody></table>
   </div></div>
 
   <button class="btn primary" id="settings-save">Save all settings</button>
@@ -3659,7 +3659,7 @@ function events_settings(){
   const addVista = document.getElementById('set-add-room-vista');
   if(addVista) addVista.onclick = ()=>{
     const nextNum = (100 + state.rooms.length + 1).toString();
-    const newRoom = { id: uid('RM'), property: 'azurevista', number: nextNum, type: 'Deluxe', rate: 3200, status: 'available' };
+    const newRoom = { id: uid('RM'), property: 'azurevista', number: nextNum, type: 'Standard', rate: 0, status: 'available' };
     state.rooms.push(newRoom);
     persist();
     toast(`Room ${nextNum} added to Azurevista`);
@@ -3669,12 +3669,41 @@ function events_settings(){
   const addSuite = document.getElementById('set-add-unit-suite');
   if(addSuite) addSuite.onclick = ()=>{
     const nextNum = 'Azure Suite ' + (state.units.length + 1);
-    const newUnit = { id: uid('UN'), property: 'azuresuite', number: nextNum, type: '2BHK Apartment', rate: 6500, status: 'available' };
+    const newUnit = { id: uid('UN'), property: 'azuresuite', number: nextNum, type: '2BHK Apartment', rate: 0, status: 'available' };
     state.units.push(newUnit);
     persist();
     toast(`${nextNum} added to Azure Suite`);
     render();
   };
+
+  // Delete Room / Unit handlers
+  document.querySelectorAll('[data-delete-room]').forEach(el => {
+    el.onclick = () => {
+      const roomId = el.dataset.deleteRoom;
+      const room = state.rooms.find(r => r.id === roomId);
+      confirmAction('Delete Room?', `Are you sure you want to delete ${room ? 'Room ' + room.number : 'this room'} from inventory?`, () => {
+        state.rooms = state.rooms.filter(r => r.id !== roomId);
+        persist();
+        closeModal();
+        toast('Room deleted from inventory');
+        render();
+      });
+    };
+  });
+
+  document.querySelectorAll('[data-delete-unit]').forEach(el => {
+    el.onclick = () => {
+      const unitId = el.dataset.deleteUnit;
+      const unit = state.units.find(u => u.id === unitId);
+      confirmAction('Delete Unit?', `Are you sure you want to delete ${unit ? unit.number : 'this unit'} from inventory?`, () => {
+        state.units = state.units.filter(u => u.id !== unitId);
+        persist();
+        closeModal();
+        toast('Unit deleted from inventory');
+        render();
+      });
+    };
+  });
 
   document.getElementById('settings-save').onclick = ()=>{
     const s = state.settings;
@@ -3691,13 +3720,14 @@ function events_settings(){
     document.querySelectorAll('[data-p-gstin]').forEach(el=> state.properties[el.dataset.pGstin].gstin = el.value);
     document.querySelectorAll('[data-room-number]').forEach(el=>{ const r = state.rooms.find(x=>x.id===el.dataset.roomNumber); if(r) r.number = el.value; });
     document.querySelectorAll('[data-room-type]').forEach(el=>{ const r = state.rooms.find(x=>x.id===el.dataset.roomType); if(r) r.type = el.value; });
-    document.querySelectorAll('[data-room-rate]').forEach(el=>{ const r = state.rooms.find(x=>x.id===el.dataset.roomRate); if(r) r.rate = +el.value||r.rate; });
+    document.querySelectorAll('[data-room-rate]').forEach(el=>{ const r = state.rooms.find(x=>x.id===el.dataset.roomRate); if(r) r.rate = +el.value||0; });
     document.querySelectorAll('[data-unit-number]').forEach(el=>{ const u = state.units.find(x=>x.id===el.dataset.unitNumber); if(u) u.number = el.value; });
     document.querySelectorAll('[data-unit-type]').forEach(el=>{ const u = state.units.find(x=>x.id===el.dataset.unitType); if(u) u.type = el.value; });
-    document.querySelectorAll('[data-unit-rate]').forEach(el=>{ const u = state.units.find(x=>x.id===el.dataset.unitRate); if(u) u.rate = +el.value||u.rate; });
+    document.querySelectorAll('[data-unit-rate]').forEach(el=>{ const u = state.units.find(x=>x.id===el.dataset.unitRate); if(u) u.rate = +el.value||0; });
     logAudit('Settings changed', 'all', 'Business/tax/room/unit settings'); persist(); toast('Settings saved'); render();
   };
 }
+
 
 /* =========================================================
    VIEW: GLOBAL SEARCH
