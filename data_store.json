@@ -1436,12 +1436,30 @@
       "status": "configured",
       "importUrl": "http://localhost:3000/api/ical/export/azurevista/airbnb.ics",
       "exportUrl": "http://localhost:3000/api/ical/export/azurevista/airbnb.ics",
-      "lastSync": "2026-10-09T09:22:27.603Z",
-      "lastSyncAttempt": "2026-10-09T09:22:27.589Z",
+      "lastSync": "2026-10-09T09:26:27.609Z",
+      "lastSyncAttempt": "2026-10-09T09:26:27.593Z",
       "lastError": null
     }
   },
   "otaSyncLogs": [
+    {
+      "id": "ICAL-UZNE3O",
+      "timestamp": "2026-10-09T09:26:27.609Z",
+      "property": "azurevista",
+      "platform": "airbnb",
+      "type": "ICAL_IMPORT",
+      "message": "Synchronized 0 event(s) from airbnb iCal feed. Imported: 0, Conflicts: 0",
+      "status": "Success"
+    },
+    {
+      "id": "ICAL-4BCCJS",
+      "timestamp": "2026-10-09T09:24:27.607Z",
+      "property": "azurevista",
+      "platform": "airbnb",
+      "type": "ICAL_IMPORT",
+      "message": "Synchronized 0 event(s) from airbnb iCal feed. Imported: 0, Conflicts: 0",
+      "status": "Success"
+    },
     {
       "id": "ICAL-DW0VRQ",
       "timestamp": "2026-10-09T09:22:27.603Z",
@@ -2572,7 +2590,7 @@
     }
   },
   "invoiceSeq": 7,
-  "lastSync": "2026-10-09T09:22:27.603Z",
+  "lastSync": "2026-10-09T09:26:27.609Z",
   "otaSyncQueue": [
     {
       "id": "QUEUE-DS76Q3",
@@ -2633,8 +2651,9 @@
       },
       "existingBooking": null,
       "reason": "Double booking alert: All rooms at azurevista occupied for 2026-11-01 → 2026-11-05",
-      "status": "UNRESOLVED",
-      "createdAt": "2026-10-09T04:50:00.012Z"
+      "status": "RESOLVED_REJECTED",
+      "createdAt": "2026-10-09T04:50:00.012Z",
+      "resolutionDetails": "Rejected incoming iCal event from airbnb."
     },
     {
       "id": "CONF-ZPKGCM",

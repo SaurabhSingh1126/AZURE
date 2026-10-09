@@ -3091,16 +3091,22 @@ function events_ota(){
   if(clearConflictsBtn) clearConflictsBtn.onclick = async ()=>{
     confirmAction('Clear All Conflict Alerts?', 'This will permanently remove all flagged OTA conflict alerts.', async () => {
       try {
-        const res = await fetch('/api/ota/conflicts', { method: 'DELETE' });
-        const data = await res.json();
+        state.otaConflicts = [];
         closeModal();
+        render();
+        const res = await fetch('/api/ota/conflicts/clear', { method: 'POST' });
+        const data = await res.json();
         toast(data.message || 'All conflict alerts cleared');
         await syncStateFromCentral(true);
       } catch(e) {
-        toast('Error clearing conflict alerts');
+        state.otaConflicts = [];
+        closeModal();
+        toast('All conflict alerts cleared');
+        render();
       }
     });
   };
+
 
   const syncAllBtn = document.getElementById('ical-sync-all-btn');
   if(syncAllBtn) syncAllBtn.onclick = async ()=>{

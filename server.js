@@ -1173,12 +1173,13 @@ app.delete('/api/ota/logs', (req, res) => {
 });
 
 // Clear All OTA Conflict Alerts
-app.delete('/api/ota/conflicts', (req, res) => {
+app.all(['/api/ota/conflicts/clear', '/api/ota/conflicts'], (req, res) => {
   dbState.otaConflicts = [];
   persistState();
   broadcast('ota_conflicts_cleared', {});
   res.json({ success: true, message: 'All OTA conflict alerts cleared successfully.' });
 });
+
 
 
 // Instant Fetch All Online Bookings Endpoint
