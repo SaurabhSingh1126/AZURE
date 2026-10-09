@@ -418,12 +418,14 @@ function extractOnlineBookingData(ev, platform, property) {
     .replace(/^Booking\.com\s*-\s*/i, '')
     .replace(/^Agoda\s*-\s*/i, '')
     .replace(/^Vrbo\s*-\s*/i, '')
+    .replace(/(\s*\((AIRBNB|MAKEMYTRIP|OFFLINE|GOIBIBO|BOOKINGCOM|AGODA|EXPEDIA)\))+/gi, '')
     .trim();
-  
+
   if (!guestName || guestName.toLowerCase().includes('reserved') || guestName.toLowerCase().includes('not available')) {
     const nameMatch = desc.match(/(?:guest|name|customer)[:\s]*([A-Za-z\s]+)/i);
     guestName = nameMatch ? nameMatch[1].trim() : `${platform} Online Guest`;
   }
+
 
   // 2. Mobile Phone Extraction
   const mobileMatch = desc.match(/(?:phone|mobile|contact|tel)[:\s]*([+\d\s\-()]{10,15})/i) ||
@@ -467,6 +469,15 @@ async function syncIcalFeed(property, platform, importUrl) {
   const feed = dbState.ota[key] || { property, platform };
   feed.lastSyncAttempt = new Date().toISOString();
 
+  // Guardrail 1: Prevent self-referencing export feeds from being imported back
+  if (importUrl.includes('/api/ical/export/')) {
+    console.log(`[iCal Sync Engine] Preventing self-referencing feed loop for ${key}. Clearing self-export importUrl.`);
+    feed.status = 'not_configured';
+    feed.importUrl = '';
+    persistState();
+    return { success: true, eventsParsed: 0, importedCount: 0, conflictCount: 0 };
+  }
+
   let icsText = '';
 
   try {
@@ -482,8 +493,11 @@ async function syncIcalFeed(property, platform, importUrl) {
     icsText = await response.text();
   } catch (err) {
     if (importUrl.includes('localhost') || importUrl.includes('127.0.0.1')) {
-      console.log(`[iCal Sync Engine] Generating simulated online iCal feed for testing...`);
-      icsText = generateSimulatedIcs(property, platform);
+      console.log(`[iCal Sync Engine] Skipping local test URL...`);
+      feed.status = 'not_configured';
+      feed.importUrl = '';
+      persistState();
+      return { success: true, eventsParsed: 0, importedCount: 0, conflictCount: 0 };
     } else {
       feed.status = 'error';
       feed.lastError = err.message;
@@ -505,10 +519,15 @@ async function syncIcalFeed(property, platform, importUrl) {
     const checkOut = ev.dtend;
     if (!checkIn || !checkOut || checkIn >= checkOut) continue;
 
+    // Guardrail 2: Ignore internal / server-generated UIDs to prevent self-conflict loop
+    if (ev.uid && (ev.uid.includes('@azurehospitality.in') || ev.uid.startsWith('BK-') || ev.uid.startsWith('SIM-'))) {
+      continue;
+    }
+
     const parsedData = extractOnlineBookingData(ev, platform, property);
     const externalUid = parsedData.externalUid;
 
-    const existing = dbState.bookings.find(b => b.externalUid === externalUid || (b.notes && b.notes.includes(externalUid)));
+    const existing = dbState.bookings.find(b => b.externalUid === externalUid || b.id === externalUid || (b.notes && b.notes.includes(externalUid)));
     if (existing) {
       if (existing.checkIn !== checkIn || existing.checkOut !== checkOut) {
         existing.checkIn = checkIn;
@@ -529,30 +548,42 @@ async function syncIcalFeed(property, platform, importUrl) {
     }
 
     if (!targetRoomId) {
-      // All rooms occupied -> Record Conflict
-      conflictCount++;
-      const conflictItem = {
-        id: 'CONF-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-        property,
-        roomId: roomsList[0]?.id || 'RM-101',
-        platform,
-        incomingBooking: {
-          guestName: parsedData.guestName,
-          mobile: parsedData.mobile,
-          email: parsedData.email,
-          checkIn,
-          checkOut,
-          rate: parsedData.rate
-        },
-        existingBooking: null,
-        reason: `Double booking alert: All rooms at ${property} occupied for ${checkIn} → ${checkOut}`,
-        status: 'UNRESOLVED',
-        createdAt: new Date().toISOString()
-      };
+      // Guardrail 3: Deduplicate conflicts so same dates/guest don't create 700+ duplicate conflicts
       if (!dbState.otaConflicts) dbState.otaConflicts = [];
-      dbState.otaConflicts.unshift(conflictItem);
-      broadcast('ota_conflict', { conflict: conflictItem });
+
+      const duplicateConflict = dbState.otaConflicts.find(c =>
+        c.property === property &&
+        c.platform === platform &&
+        c.status === 'UNRESOLVED' &&
+        c.incomingBooking?.checkIn === checkIn &&
+        c.incomingBooking?.checkOut === checkOut
+      );
+
+      if (!duplicateConflict) {
+        conflictCount++;
+        const conflictItem = {
+          id: 'CONF-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+          property,
+          roomId: roomsList[0]?.id || 'RM-101',
+          platform,
+          incomingBooking: {
+            guestName: parsedData.guestName,
+            mobile: parsedData.mobile,
+            email: parsedData.email,
+            checkIn,
+            checkOut,
+            rate: parsedData.rate
+          },
+          existingBooking: null,
+          reason: `Double booking alert: All rooms at ${property} occupied for ${checkIn} → ${checkOut}`,
+          status: 'UNRESOLVED',
+          createdAt: new Date().toISOString()
+        };
+        dbState.otaConflicts.unshift(conflictItem);
+        broadcast('ota_conflict', { conflict: conflictItem });
+      }
     } else {
+
       // Auto-assign open room and create online booking!
       await acquireRoomLock(targetRoomId);
       try {
