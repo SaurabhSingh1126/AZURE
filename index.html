@@ -2926,8 +2926,12 @@ function viewOTA(){
     <div class="panel" style="border:2px solid var(--red);margin-bottom:24px;">
       <div class="panel-head" style="background:var(--red-tint);">
         <h3 style="color:var(--red);">⚠️ iCal Booking Conflict Resolution Center</h3>
-        <span class="badge red">${unresolvedConflicts.length} Conflict(s) Flagged</span>
+        <div class="flex gap-8" style="align-items:center;">
+          <span class="badge red">${unresolvedConflicts.length} Conflict(s) Flagged</span>
+          <button class="btn sm danger" id="clear-all-conflicts-btn">🗑️ Clear All Conflicts</button>
+        </div>
       </div>
+
       <div class="panel-body">
         <p style="font-size:12px;color:var(--ink-soft);margin-bottom:14px;">
           The system prevented an automatic double booking. An imported iCal reservation collides with an existing offline booking for the same room dates:
@@ -3083,6 +3087,21 @@ function events_ota(){
     }
   };
 
+  const clearConflictsBtn = document.getElementById('clear-all-conflicts-btn');
+  if(clearConflictsBtn) clearConflictsBtn.onclick = async ()=>{
+    confirmAction('Clear All Conflict Alerts?', 'This will permanently remove all flagged OTA conflict alerts.', async () => {
+      try {
+        const res = await fetch('/api/ota/conflicts', { method: 'DELETE' });
+        const data = await res.json();
+        closeModal();
+        toast(data.message || 'All conflict alerts cleared');
+        await syncStateFromCentral(true);
+      } catch(e) {
+        toast('Error clearing conflict alerts');
+      }
+    });
+  };
+
   const syncAllBtn = document.getElementById('ical-sync-all-btn');
   if(syncAllBtn) syncAllBtn.onclick = async ()=>{
     toast('Syncing all configured iCal feeds...');
@@ -3095,6 +3114,7 @@ function events_ota(){
       toast('Sync failed');
     }
   };
+
 
 
   const clearBtns = [document.getElementById('ota-clear-logs'), document.getElementById('ota-clear-logs-2')].filter(Boolean);

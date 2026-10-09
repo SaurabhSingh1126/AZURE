@@ -1172,6 +1172,15 @@ app.delete('/api/ota/logs', (req, res) => {
   res.json({ success: true, message: 'Sync logs cleared.' });
 });
 
+// Clear All OTA Conflict Alerts
+app.delete('/api/ota/conflicts', (req, res) => {
+  dbState.otaConflicts = [];
+  persistState();
+  broadcast('ota_conflicts_cleared', {});
+  res.json({ success: true, message: 'All OTA conflict alerts cleared successfully.' });
+});
+
+
 // Instant Fetch All Online Bookings Endpoint
 app.post('/api/ota/fetch-online', async (req, res) => {
   const configuredKeys = Object.keys(dbState.ota || {}).filter(k => dbState.ota[k] && dbState.ota[k].importUrl);
