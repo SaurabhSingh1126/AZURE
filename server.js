@@ -676,18 +676,39 @@ function generateSimulatedIcs(property, platform) {
   ].join('\r\n');
 }
 
-/* =========================================================
-   REST API ENDPOINTS
-========================================================= */
+function getBaseUrl(req) {
+  if (process.env.APP_URL) return process.env.APP_URL.replace(/\/$/, '');
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  if (req) {
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+    const host = req.headers['x-forwarded-host'] || req.get('host') || 'localhost:3000';
+    return `${proto}://${host}`;
+  }
+  return `http://localhost:${PORT}`;
+}
 
 // 1. GET Central Database State
 app.get('/api/state', (req, res) => {
+  const baseUrl = getBaseUrl(req);
+
+  // Dynamically resolve live public export URLs for channel feeds
+  if (dbState.ota) {
+    Object.keys(dbState.ota).forEach(k => {
+      const feed = dbState.ota[k];
+      if (feed) {
+        const slug = feed.platform.toLowerCase().replace(/[^a-z0-9]/g, '');
+        feed.exportUrl = `${baseUrl}/api/ical/export/${feed.property}/${slug}.ics`;
+      }
+    });
+  }
+
   res.json({
     success: true,
     data: dbState,
     isMongoConnected
   });
 });
+
 
 // 2. GET Central Availability
 app.get('/api/availability', (req, res) => {
@@ -970,6 +991,7 @@ app.post('/api/ical/configure', (req, res) => {
   const key = `${property}|${platform}`;
   let feed = dbState.ota[key];
 
+  const baseUrl = getBaseUrl(req);
   if (!feed) {
     const slug = platform.toLowerCase().replace(/[^a-z0-9]/g, '');
     feed = {
@@ -977,13 +999,15 @@ app.post('/api/ical/configure', (req, res) => {
       platform,
       status: 'not_configured',
       importUrl: '',
-      exportUrl: `http://localhost:${PORT}/api/ical/export/${property}/${slug}.ics`,
+      exportUrl: `${baseUrl}/api/ical/export/${property}/${slug}.ics`,
       lastSync: null,
       lastSyncAttempt: null,
       lastError: null
     };
     dbState.ota[key] = feed;
   }
+  feed.exportUrl = `${baseUrl}/api/ical/export/${property}/${platform.toLowerCase().replace(/[^a-z0-9]/g, '')}.ics`;
+
 
   feed.importUrl = (importUrl || '').trim();
   feed.status = feed.importUrl ? 'configured' : 'not_configured';

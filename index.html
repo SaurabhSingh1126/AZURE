@@ -2980,18 +2980,21 @@ function viewOTA(){
       ${OTA_PLATFORMS.map(plat=>{
         const key = p + '|' + plat;
         const slug = plat.toLowerCase().replace(/[^a-z0-9]/g,'');
+        const origin = window.location.origin;
+        const liveExportUrl = `${origin}/api/ical/export/${p}/${slug}.ics`;
         const conn = state.ota[key] || {
           property: p,
           platform: plat,
           status: 'not_configured',
           importUrl: '',
-          exportUrl: `http://localhost:3000/api/ical/export/${p}/${slug}.ics`
+          exportUrl: liveExportUrl
         };
 
         const isConfigured = Boolean(conn.importUrl);
         const statusClass = isConfigured ? 'green' : (conn.status === 'error' ? 'red' : 'grey');
         const statusLabel = isConfigured ? 'Configured & Active' : (conn.status === 'error' ? 'Error' : 'Not Configured');
-        const exportUrl = conn.exportUrl || `http://localhost:3000/api/ical/export/${p}/${slug}.ics`;
+        const exportUrl = (conn.exportUrl && !conn.exportUrl.includes('localhost')) ? conn.exportUrl : liveExportUrl;
+
 
         return `
         <div class="panel" style="border-top:3px solid var(--${statusClass});margin-bottom:0;">
