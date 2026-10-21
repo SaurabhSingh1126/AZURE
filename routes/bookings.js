@@ -12,6 +12,7 @@ const AuditLog = require('../models/AuditLog');
 const Setting = require('../models/Setting');
 const { broadcast } = require('../services/realtime');
 const { optionalAuth, requireRole } = require('../middleware/auth');
+const { updateStore, getStore } = require('../services/storeSync');
 
 // Mutex locks for atomic double-booking prevention
 const roomLocks = new Map();
@@ -237,17 +238,162 @@ router.post('/', optionalAuth, async (req, res) => {
   await acquireRoomLock(roomId);
 
   try {
-    // Check overlapping bookings in MongoDB
-    const activeConflicts = await Booking.find({
-      roomId,
-      status: { $nin: ['cancelled', 'checked-out', 'no-show', 'CANCELLED', 'REJECTED'] },
-      $or: [
-        {
-          checkIn: { $lt: checkOut },
-          checkOut: { $gt: checkIn }
-        }
-      ]
-    }).lean();
+    const bookingId = customId || ('BK-' + Math.random().toString(36).slice(2, 8).toUpperCase());
+    const today = todayStr();
+    const advAmount = Number(advance || 0);
+    const rateAmount = Number(rate || 0);
+    const discAmount = Number(discount || 0);
+    const initialStatus = checkIn <= today ? 'confirmed' : 'reserved';
+    const initialPayment = advAmount > 0 ? (advAmount >= rateAmount ? 'paid' : 'partial') : 'unpaid';
+
+    // 1. If MongoDB is connected:
+    if (mongoose.connection.readyState === 1) {
+      // Check overlapping bookings in MongoDB
+      const activeConflicts = await Booking.find({
+        roomId,
+        status: { $nin: ['cancelled', 'checked-out', 'no-show', 'CANCELLED', 'REJECTED', 'Checked-out', 'Checked-Out', 'Cancelled', 'No-show'] },
+        $or: [
+          {
+            checkIn: { $lt: checkOut },
+            checkOut: { $gt: checkIn }
+          }
+        ]
+      }).lean();
+
+      if (activeConflicts.length > 0) {
+        const conflict = activeConflicts[0];
+        return res.status(400).json({
+          success: false,
+          conflictBookingId: conflict.id,
+          message: `Room ${roomId} is already booked for selected dates (${conflict.checkIn} → ${conflict.checkOut}) by ${conflict.guestName} [${conflict.id}].`
+        });
+      }
+
+      // Check maintenance blocks
+      const settingsDoc = await Setting.findOne({ key: 'system_settings' }).lean();
+      const maintenanceBlocks = (settingsDoc?.maintenance || []).filter(m => {
+        if (m.roomId !== roomId) return false;
+        if (m.status === 'completed' || m.status === 'resolved') return false;
+        const mStart = m.startDate || m.date || '2000-01-01';
+        const mEnd = m.endDate || mStart;
+        return isDateOverlapping(mStart, mEnd, checkIn, checkOut);
+      });
+
+      if (maintenanceBlocks.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: `Room ${roomId} is currently blocked for maintenance: ${maintenanceBlocks[0].reason || 'Maintenance'}.`
+        });
+      }
+
+      // Create or update guest in MongoDB
+      let guest = await Guest.findOne({ mobile: mobile.trim() });
+      if (!guest) {
+        guest = await Guest.create({
+          id: 'GU-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+          name: guestName.trim(),
+          mobile: mobile.trim(),
+          email: (email || '').trim(),
+          address: '',
+          idType: '',
+          idNumber: '',
+          properties: [property],
+          totalStays: 1,
+          totalSpend: Number(advAmount),
+          outstanding: 0
+        });
+      } else {
+        guest.totalStays = (guest.totalStays || 0) + 1;
+        guest.totalSpend = (guest.totalSpend || 0) + Number(advAmount);
+        if (!guest.properties.includes(property)) guest.properties.push(property);
+        await guest.save();
+      }
+
+      const newBooking = await Booking.create({
+        id: bookingId,
+        property,
+        roomId,
+        guestId: guest.id,
+        guestName: guestName.trim(),
+        mobile: mobile.trim(),
+        email: (email || '').trim(),
+        adults: Number(adults || 1),
+        children: Number(children || 0),
+        checkIn,
+        checkInTime: '13:00',
+        checkOut,
+        checkOutTime: '11:00',
+        rate: rateAmount,
+        discount: discAmount,
+        advance: advAmount,
+        source: source || 'OFFLINE',
+        status: initialStatus,
+        payment: initialPayment,
+        otaSyncStatus: 'SYNCED',
+        notes: notes || '',
+        createdBy: createdBy || req.user?.name || 'Front Desk',
+        createdDate: today
+      });
+
+      // Record advance payment if present
+      if (advAmount > 0) {
+        await Payment.create({
+          id: 'TXN-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+          bookingId: newBooking.id,
+          property: newBooking.property,
+          amount: advAmount,
+          method: 'Cash',
+          date: today,
+          notes: 'Advance payment',
+          addedBy: createdBy || req.user?.name || 'Front Desk'
+        }).catch(() => {});
+      }
+
+      // Update room status if checking in today
+      if (checkIn === today) {
+        await Room.findOneAndUpdate(
+          { id: roomId },
+          { status: 'reserved' }
+        ).catch(() => {});
+      }
+
+      // Record audit log
+      await AuditLog.create({
+        id: 'AL-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+        user: createdBy || req.user?.name || 'Front Desk',
+        action: 'Booking Created',
+        property,
+        roomId,
+        record: newBooking.id,
+        date: new Date().toISOString()
+      }).catch(() => {});
+
+      // Keep local data_store.json synchronously updated
+      updateStore(store => {
+        if (!store.bookings) store.bookings = [];
+        const plain = newBooking.toObject ? newBooking.toObject() : newBooking;
+        store.bookings.unshift(plain);
+      });
+
+      // Broadcast multi-device real-time event
+      broadcast('booking_created', { booking: newBooking });
+      broadcast('availability_updated', { property, roomId, checkIn, checkOut });
+
+      return res.status(201).json({
+        success: true,
+        message: `Booking ${newBooking.id} created and synchronized across all devices.`,
+        booking: newBooking
+      });
+    }
+
+    // 2. Offline / Serverless fallback (data_store.json)
+    const store = getStore();
+    const activeConflicts = (store.bookings || []).filter(b => {
+      if (b.roomId !== roomId) return false;
+      const st = (b.status || '').toLowerCase();
+      if (['cancelled', 'checked-out', 'no-show', 'rejected'].includes(st)) return false;
+      return (b.checkIn < checkOut && b.checkOut > checkIn);
+    });
 
     if (activeConflicts.length > 0) {
       const conflict = activeConflicts[0];
@@ -258,60 +404,11 @@ router.post('/', optionalAuth, async (req, res) => {
       });
     }
 
-    // Check maintenance blocks
-    const settingsDoc = await Setting.findOne({ key: 'system_settings' }).lean();
-    const maintenanceBlocks = (settingsDoc?.maintenance || []).filter(m => {
-      if (m.roomId !== roomId) return false;
-      if (m.status === 'completed' || m.status === 'resolved') return false;
-      const mStart = m.startDate || m.date || '2000-01-01';
-      const mEnd = m.endDate || mStart;
-      return isDateOverlapping(mStart, mEnd, checkIn, checkOut);
-    });
-
-    if (maintenanceBlocks.length > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Room ${roomId} is currently blocked for maintenance: ${maintenanceBlocks[0].reason || 'Maintenance'}.`
-      });
-    }
-
-    // Create or update guest in MongoDB
-    let guest = await Guest.findOne({ mobile: mobile.trim() });
-    if (!guest) {
-      guest = await Guest.create({
-        id: 'GU-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-        name: guestName.trim(),
-        mobile: mobile.trim(),
-        email: (email || '').trim(),
-        address: '',
-        idType: '',
-        idNumber: '',
-        properties: [property],
-        totalStays: 1,
-        totalSpend: Number(advance || 0),
-        outstanding: 0
-      });
-    } else {
-      guest.totalStays = (guest.totalStays || 0) + 1;
-      guest.totalSpend = (guest.totalSpend || 0) + Number(advance || 0);
-      if (!guest.properties.includes(property)) guest.properties.push(property);
-      await guest.save();
-    }
-
-    const bookingId = customId || ('BK-' + Math.random().toString(36).slice(2, 8).toUpperCase());
-    const today = todayStr();
-    const advAmount = Number(advance || 0);
-    const rateAmount = Number(rate || 0);
-    const discAmount = Number(discount || 0);
-
-    const initialStatus = checkIn <= today ? 'confirmed' : 'reserved';
-    const initialPayment = advAmount > 0 ? (advAmount >= rateAmount ? 'paid' : 'partial') : 'unpaid';
-
-    const newBooking = await Booking.create({
+    const fallbackBooking = {
       id: bookingId,
       property,
       roomId,
-      guestId: guest.id,
+      guestId: 'GU-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
       guestName: guestName.trim(),
       mobile: mobile.trim(),
       email: (email || '').trim(),
@@ -331,50 +428,24 @@ router.post('/', optionalAuth, async (req, res) => {
       notes: notes || '',
       createdBy: createdBy || req.user?.name || 'Front Desk',
       createdDate: today
+    };
+
+    updateStore(s => {
+      if (!s.bookings) s.bookings = [];
+      s.bookings.unshift(fallbackBooking);
     });
 
-    // Record advance payment if present
-    if (advAmount > 0) {
-      await Payment.create({
-        id: 'TXN-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-        bookingId: newBooking.id,
-        property: newBooking.property,
-        amount: advAmount,
-        method: 'Cash',
-        date: today,
-        notes: 'Advance payment',
-        addedBy: createdBy || req.user?.name || 'Front Desk'
-      });
-    }
-
-    // Update room status if checking in today
-    if (checkIn === today) {
-      await Room.findOneAndUpdate(
-        { id: roomId },
-        { status: 'reserved' }
-      );
-    }
-
-    // Record audit log
-    await AuditLog.create({
-      id: 'AL-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-      user: createdBy || req.user?.name || 'Front Desk',
-      action: 'Booking Created',
-      property,
-      roomId,
-      record: newBooking.id,
-      date: new Date().toISOString()
-    });
-
-    // Broadcast multi-device real-time event
-    broadcast('booking_created', { booking: newBooking });
+    broadcast('booking_created', { booking: fallbackBooking });
     broadcast('availability_updated', { property, roomId, checkIn, checkOut });
 
     return res.status(201).json({
       success: true,
-      message: `Booking ${newBooking.id} created and synchronized across all devices.`,
-      booking: newBooking
+      message: `Booking ${fallbackBooking.id} created and saved to local data store.`,
+      booking: fallbackBooking
     });
+  } catch (err) {
+    console.error('[Create Booking Error]:', err);
+    return res.status(500).json({ success: false, message: err.message });
   } finally {
     releaseRoomLock(roomId);
   }
@@ -382,86 +453,119 @@ router.post('/', optionalAuth, async (req, res) => {
 
 // 4. PATCH & PUT /api/bookings/:id — Update booking with overlap validation
 const handleUpdateBooking = async (req, res) => {
-  const bookingId = req.params.id;
-  const booking = await Booking.findOne({ id: bookingId });
+  try {
+    const bookingId = req.params.id;
+    const {
+      roomId, checkIn, checkOut, guestName, mobile, email,
+      adults, children, rate, discount, advance, status, source, notes
+    } = req.body;
 
-  if (!booking) {
-    return res.status(404).json({ success: false, message: 'Booking not found.' });
-  }
-
-  const {
-    roomId, checkIn, checkOut, guestName, mobile, email,
-    adults, children, rate, discount, advance, status, source, notes
-  } = req.body;
-
-  const targetRoomId = roomId || booking.roomId;
-  const targetCheckIn = checkIn || booking.checkIn;
-  const targetCheckOut = checkOut || booking.checkOut;
-
-  // If room or dates changed, re-validate overlap
-  if (targetRoomId !== booking.roomId || targetCheckIn !== booking.checkIn || targetCheckOut !== booking.checkOut) {
-    await acquireRoomLock(targetRoomId);
-    try {
-      const activeConflicts = await Booking.find({
-        id: { $ne: booking.id },
-        roomId: targetRoomId,
-        status: { $nin: ['cancelled', 'checked-out', 'no-show', 'CANCELLED', 'REJECTED'] },
-        $or: [
-          {
-            checkIn: { $lt: targetCheckOut },
-            checkOut: { $gt: targetCheckIn }
-          }
-        ]
-      }).lean();
-
-      if (activeConflicts.length > 0) {
-        return res.status(400).json({
-          success: false,
-          message: `Cannot move booking: Room ${targetRoomId} is already booked from ${activeConflicts[0].checkIn} to ${activeConflicts[0].checkOut} by ${activeConflicts[0].guestName} [${activeConflicts[0].id}].`
-        });
+    if (mongoose.connection.readyState === 1) {
+      const booking = await Booking.findOne({ id: bookingId });
+      if (!booking) {
+        return res.status(404).json({ success: false, message: 'Booking not found.' });
       }
-    } finally {
-      releaseRoomLock(targetRoomId);
+
+      const targetRoomId = roomId || booking.roomId;
+      const targetCheckIn = checkIn || booking.checkIn;
+      const targetCheckOut = checkOut || booking.checkOut;
+
+      // If room or dates changed, re-validate overlap
+      if (targetRoomId !== booking.roomId || targetCheckIn !== booking.checkIn || targetCheckOut !== booking.checkOut) {
+        await acquireRoomLock(targetRoomId);
+        try {
+          const activeConflicts = await Booking.find({
+            id: { $ne: booking.id },
+            roomId: targetRoomId,
+            status: { $nin: ['cancelled', 'checked-out', 'no-show', 'CANCELLED', 'REJECTED', 'Checked-out', 'Checked-Out', 'Cancelled', 'No-show'] },
+            $or: [
+              {
+                checkIn: { $lt: targetCheckOut },
+                checkOut: { $gt: targetCheckIn }
+              }
+            ]
+          }).lean();
+
+          if (activeConflicts.length > 0) {
+            return res.status(400).json({
+              success: false,
+              message: `Cannot move booking: Room ${targetRoomId} is already booked from ${activeConflicts[0].checkIn} to ${activeConflicts[0].checkOut} by ${activeConflicts[0].guestName} [${activeConflicts[0].id}].`
+            });
+          }
+        } finally {
+          releaseRoomLock(targetRoomId);
+        }
+      }
+
+      if (guestName) booking.guestName = guestName.trim();
+      if (mobile) booking.mobile = mobile.trim();
+      if (email !== undefined) booking.email = email.trim();
+      if (roomId) booking.roomId = roomId;
+      if (checkIn) booking.checkIn = checkIn;
+      if (checkOut) booking.checkOut = checkOut;
+      if (adults != null) booking.adults = Number(adults);
+      if (children != null) booking.children = Number(children);
+      if (rate != null) booking.rate = Number(rate);
+      if (discount != null) booking.discount = Number(discount);
+      if (advance != null) booking.advance = Number(advance);
+      if (status) booking.status = status;
+      if (source) booking.source = source;
+      if (notes !== undefined) booking.notes = notes;
+
+      await booking.save();
+
+      // Mirror to data_store.json
+      updateStore(store => {
+        if (!store.bookings) store.bookings = [];
+        const idx = store.bookings.findIndex(b => b.id === bookingId);
+        if (idx !== -1) {
+          store.bookings[idx] = { ...store.bookings[idx], ...(booking.toObject ? booking.toObject() : booking) };
+        }
+      });
+
+      // Audit log
+      await AuditLog.create({
+        id: 'AL-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+        user: req.user?.name || 'Front Desk',
+        action: 'Booking Updated',
+        property: booking.property,
+        roomId: booking.roomId,
+        record: booking.id,
+        date: new Date().toISOString()
+      }).catch(() => {});
+
+      // Real-time multi-device sync
+      broadcast('booking_updated', { booking });
+      broadcast('availability_updated', { property: booking.property, roomId: booking.roomId });
+
+      return res.json({
+        success: true,
+        message: `Booking ${booking.id} updated successfully.`,
+        booking
+      });
     }
+
+    // Offline / data_store fallback
+    let updatedBooking = null;
+    updateStore(store => {
+      if (!store.bookings) store.bookings = [];
+      const idx = store.bookings.findIndex(b => b.id === bookingId);
+      if (idx !== -1) {
+        store.bookings[idx] = { ...store.bookings[idx], ...req.body };
+        updatedBooking = store.bookings[idx];
+      }
+    });
+
+    if (!updatedBooking) {
+      return res.status(404).json({ success: false, message: 'Booking not found.' });
+    }
+
+    broadcast('booking_updated', { booking: updatedBooking });
+    res.json({ success: true, message: `Booking ${bookingId} updated in local store.`, booking: updatedBooking });
+  } catch (err) {
+    console.error('[Update Booking Error]:', err);
+    res.status(500).json({ success: false, message: err.message });
   }
-
-  if (guestName) booking.guestName = guestName.trim();
-  if (mobile) booking.mobile = mobile.trim();
-  if (email !== undefined) booking.email = email.trim();
-  if (roomId) booking.roomId = roomId;
-  if (checkIn) booking.checkIn = checkIn;
-  if (checkOut) booking.checkOut = checkOut;
-  if (adults != null) booking.adults = Number(adults);
-  if (children != null) booking.children = Number(children);
-  if (rate != null) booking.rate = Number(rate);
-  if (discount != null) booking.discount = Number(discount);
-  if (advance != null) booking.advance = Number(advance);
-  if (status) booking.status = status;
-  if (source) booking.source = source;
-  if (notes !== undefined) booking.notes = notes;
-
-  await booking.save();
-
-  // Audit log
-  await AuditLog.create({
-    id: 'AL-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-    user: req.user?.name || 'Front Desk',
-    action: 'Booking Updated',
-    property: booking.property,
-    roomId: booking.roomId,
-    record: booking.id,
-    date: new Date().toISOString()
-  });
-
-  // Real-time multi-device sync
-  broadcast('booking_updated', { booking });
-  broadcast('availability_updated', { property: booking.property, roomId: booking.roomId });
-
-  res.json({
-    success: true,
-    message: `Booking ${booking.id} updated successfully.`,
-    booking
-  });
 };
 
 router.patch('/:id', optionalAuth, handleUpdateBooking);
@@ -469,43 +573,66 @@ router.put('/:id', optionalAuth, handleUpdateBooking);
 
 // 5. PATCH & POST /api/bookings/:id/cancel — Cancel booking & release room dates
 const handleCancelBooking = async (req, res) => {
-  const bookingId = req.params.id;
-  const booking = await Booking.findOne({ id: bookingId });
+  try {
+    const bookingId = req.params.id;
 
-  if (!booking) {
-    return res.status(404).json({ success: false, message: 'Booking not found.' });
+    if (mongoose.connection.readyState === 1) {
+      const booking = await Booking.findOne({ id: bookingId });
+      if (!booking) {
+        return res.status(404).json({ success: false, message: 'Booking not found.' });
+      }
+
+      booking.status = 'cancelled';
+      await booking.save();
+
+      // Release room status if reserved or occupied
+      const room = await Room.findOne({ id: booking.roomId });
+      if (room && (room.status === 'reserved' || room.status === 'occupied')) {
+        room.status = 'available';
+        await room.save().catch(() => {});
+      }
+
+      // Update in data_store.json
+      updateStore(store => {
+        if (!store.bookings) store.bookings = [];
+        const idx = store.bookings.findIndex(b => b.id === bookingId);
+        if (idx !== -1) store.bookings[idx].status = 'cancelled';
+      });
+
+      // Audit log
+      await AuditLog.create({
+        id: 'AL-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+        user: req.user?.name || 'Front Desk',
+        action: 'Booking Cancelled',
+        property: booking.property,
+        roomId: booking.roomId,
+        record: booking.id,
+        date: new Date().toISOString()
+      }).catch(() => {});
+
+      // Broadcast cancel event
+      broadcast('booking_cancelled', { bookingId: booking.id, roomId: booking.roomId, property: booking.property });
+      broadcast('availability_updated', { property: booking.property, roomId: booking.roomId });
+
+      return res.json({
+        success: true,
+        message: `Booking ${booking.id} cancelled. Room dates released.`,
+        booking
+      });
+    }
+
+    // Offline / data_store fallback
+    updateStore(store => {
+      if (!store.bookings) store.bookings = [];
+      const idx = store.bookings.findIndex(b => b.id === bookingId);
+      if (idx !== -1) store.bookings[idx].status = 'cancelled';
+    });
+
+    broadcast('booking_cancelled', { bookingId, roomId: '', property: '' });
+    res.json({ success: true, message: `Booking ${bookingId} cancelled in store.` });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
   }
-
-  booking.status = 'cancelled';
-  await booking.save();
-
-  // Release room status if reserved or occupied
-  const room = await Room.findOne({ id: booking.roomId });
-  if (room && (room.status === 'reserved' || room.status === 'occupied')) {
-    room.status = 'available';
-    await room.save();
-  }
-
-  // Audit log
-  await AuditLog.create({
-    id: 'AL-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-    user: req.user?.name || 'Front Desk',
-    action: 'Booking Cancelled',
-    property: booking.property,
-    roomId: booking.roomId,
-    record: booking.id,
-    date: new Date().toISOString()
-  });
-
-  // Broadcast cancel event
-  broadcast('booking_cancelled', { bookingId: booking.id, roomId: booking.roomId, property: booking.property });
-  broadcast('availability_updated', { property: booking.property, roomId: booking.roomId });
-
-  res.json({
-    success: true,
-    message: `Booking ${booking.id} cancelled. Room dates released.`,
-    booking
-  });
 };
 
 router.patch('/:id/cancel', optionalAuth, handleCancelBooking);
@@ -577,25 +704,45 @@ router.post('/clear-all', optionalAuth, clearAllHandler);
 // 6. DELETE /api/bookings/:id — Delete booking
 router.delete('/:id', optionalAuth, async (req, res) => {
   try {
-    const booking = await Booking.findOneAndDelete({ id: req.params.id });
-    if (!booking) {
-      return res.status(404).json({ success: false, message: 'Booking not found.' });
+    const bookingId = req.params.id;
+
+    if (mongoose.connection.readyState === 1) {
+      const booking = await Booking.findOneAndDelete({ id: bookingId });
+      if (!booking) {
+        return res.status(404).json({ success: false, message: 'Booking not found.' });
+      }
+
+      // Release room
+      const room = await Room.findOne({ id: booking.roomId });
+      if (room && room.status === 'reserved') {
+        room.status = 'available';
+        await room.save().catch(() => {});
+      }
+
+      updateStore(store => {
+        if (store.bookings) {
+          store.bookings = store.bookings.filter(b => b.id !== bookingId);
+        }
+      });
+
+      broadcast('booking_deleted', { bookingId: booking.id, roomId: booking.roomId, property: booking.property });
+      broadcast('availability_updated', { property: booking.property, roomId: booking.roomId });
+
+      return res.json({
+        success: true,
+        message: `Booking ${booking.id} permanently removed.`
+      });
     }
 
-    // Release room
-    const room = await Room.findOne({ id: booking.roomId });
-    if (room && room.status === 'reserved') {
-      room.status = 'available';
-      await room.save();
-    }
-
-    broadcast('booking_deleted', { bookingId: booking.id, roomId: booking.roomId, property: booking.property });
-    broadcast('availability_updated', { property: booking.property, roomId: booking.roomId });
-
-    res.json({
-      success: true,
-      message: `Booking ${booking.id} permanently removed.`
+    // Offline deletion
+    updateStore(store => {
+      if (store.bookings) {
+        store.bookings = store.bookings.filter(b => b.id !== bookingId);
+      }
     });
+
+    broadcast('booking_deleted', { bookingId, roomId: '', property: '' });
+    res.json({ success: true, message: `Booking ${bookingId} permanently removed.` });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

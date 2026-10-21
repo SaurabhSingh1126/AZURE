@@ -716,6 +716,9 @@ function initRealtime() {
 
 async function syncStateFromCentral(silent = true) {
   try {
+    // If currently on settings page during silent background polling, skip overwrite so user input is never clobbered or reverted
+    if (ui.view === 'settings' && silent) return;
+
     const headers = {};
     if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
     const res = await fetch('/api/state', { headers });
@@ -758,6 +761,12 @@ function handleRealtimeEvent(msg) {
     toast(`⚡ Real-Time Sync: Booking ${data.bookingId || ''} deleted`);
     syncStateFromCentral(true);
     fetchBookingsPage(bookingsPagination.page);
+  } else if (type === 'settings_updated') {
+    if (data.settings) state.settings = { ...(state.settings || {}), ...data.settings };
+    if (data.properties) state.properties = { ...(state.properties || {}), ...data.properties };
+    if (data.rooms) state.rooms = data.rooms;
+    if (data.units) state.units = data.units;
+    if (ui.view !== 'settings') render();
   } else if (type === 'room_blocked' || type === 'room_unblocked') {
     toast(`⚡ Real-Time Sync: Room status updated`);
     syncStateFromCentral(true);
@@ -2127,8 +2136,24 @@ function openBookingModal(prefill){
   function refreshRooms(){
     const rs = availableRoomsForProperty(propSel.value);
     roomSel.innerHTML = rs.map(r=>`<option value="${r.id}">${r.property==='azurevista'?'Room '+r.number+' — '+r.type:r.number}</option>`).join('');
+    if (rs.length > 0 && rs[0].rate) {
+      rateInp.value = rs[0].rate;
+    }
   }
-  propSel.onchange = refreshRooms;
+  propSel.onchange = () => {
+    refreshRooms();
+    const allR = state.rooms.concat(state.units);
+    const r = allR.find(x => x.id === roomSel.value);
+    if (r && r.rate) rateInp.value = r.rate;
+  };
+  roomSel.onchange = () => {
+    const allR = state.rooms.concat(state.units);
+    const r = allR.find(x => x.id === roomSel.value);
+    if (r && r.rate) rateInp.value = r.rate;
+  };
+  if (rooms.length > 0 && rooms[0].rate && !rateInp.value) {
+    rateInp.value = rooms[0].rate;
+  }
 
   document.getElementById('bk-cancel').onclick = closeModal;
   document.getElementById('bk-save').onclick = async ()=>{
@@ -2137,9 +2162,11 @@ function openBookingModal(prefill){
     const ci = document.getElementById('f-checkin').value, co = document.getElementById('f-checkout').value;
     const errBox = document.getElementById('bk-form-err');
     if(!name || !mobile){ errBox.innerHTML = `<div class="err-msg">Guest name and mobile number are required.</div>`; return; }
+    if(!ci || !co){ errBox.innerHTML = `<div class="err-msg">Please specify both check-in and check-out dates.</div>`; return; }
     if(new Date(co) <= new Date(ci)){ errBox.innerHTML = `<div class="err-msg">Check-out must be after check-in.</div>`; return; }
     
     const roomId = document.getElementById('f-room').value;
+    if(!roomId){ errBox.innerHTML = `<div class="err-msg">Please select a valid room or unit.</div>`; return; }
     const property = document.getElementById('f-property').value;
     const source = document.getElementById('f-source').value;
     const rate = +document.getElementById('f-rate').value || 0;
@@ -2150,6 +2177,9 @@ function openBookingModal(prefill){
     const children = +document.getElementById('f-children').value || 0;
     const notes = document.getElementById('f-notes').value.trim();
 
+    const saveBtn = document.getElementById('bk-save');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+
     try {
       const headers = { 'Content-Type': 'application/json' };
       if(auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
@@ -2159,7 +2189,7 @@ function openBookingModal(prefill){
         body: JSON.stringify({
           property, roomId, guestName: name, mobile, email,
           adults, children, checkIn: ci, checkOut: co, rate,
-          discount, advance, source, notes, createdBy: auth.user
+          discount, advance, source, notes, createdBy: (auth && auth.user) || 'Front Desk'
         })
       });
 
@@ -2169,13 +2199,19 @@ function openBookingModal(prefill){
         return;
       }
 
+      if (resData.booking) {
+        state.bookings.unshift(resData.booking);
+      }
       closeModal();
       toast(`Booking ${resData.booking.id} created & saved to Cloud Database!`);
       ui.view = 'bookings';
+      render();
       await fetchBookingsPage(1);
       await syncStateFromCentral(true);
     } catch (err) {
       errBox.innerHTML = `<div class="err-msg">Connection error: ${esc(err.message)}</div>`;
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save booking'; }
     }
   };
 }
@@ -2606,6 +2642,10 @@ function openEditBookingModal(bookingId){
       errBox.innerHTML = `<div class="err-msg">Guest name and mobile are required.</div>`;
       return;
     }
+    if(!ci || !co){
+      errBox.innerHTML = `<div class="err-msg">Please specify both check-in and check-out dates.</div>`;
+      return;
+    }
     if(new Date(co) <= new Date(ci)){
       errBox.innerHTML = `<div class="err-msg">Check-out must be after check-in.</div>`;
       return;
@@ -2624,6 +2664,9 @@ function openEditBookingModal(bookingId){
       notes: document.getElementById('eb-notes').value.trim()
     };
 
+    const saveBtn = document.getElementById('eb-save');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving...'; }
+
     try {
       const headers = { 'Content-Type': 'application/json' };
       if(auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
@@ -2638,13 +2681,22 @@ function openEditBookingModal(bookingId){
         return;
       }
 
+      if (data.booking) {
+        const bIdx = state.bookings.findIndex(x => x.id === b.id);
+        if (bIdx !== -1) {
+          state.bookings[bIdx] = { ...state.bookings[bIdx], ...data.booking };
+        }
+      }
       closeModal();
       toast(`Booking ${b.id} updated and synced across all devices!`);
+      render();
       await fetchBookingsPage(bookingsPagination.page);
       await syncStateFromCentral(true);
       openBookingDetail(b.id);
     } catch (err) {
       errBox.innerHTML = `<div class="err-msg">Connection error: ${esc(err.message)}</div>`;
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save changes'; }
     }
   };
 }
@@ -4480,21 +4532,39 @@ function events_settings(){
   }
 
   const addVista = document.getElementById('set-add-room-vista');
-  if(addVista) addVista.onclick = ()=>{
+  if(addVista) addVista.onclick = async ()=>{
     const nextNum = (100 + state.rooms.length + 1).toString();
     const newRoom = { id: uid('RM'), property: 'azurevista', number: nextNum, type: 'Standard', rate: 0, status: 'available' };
     state.rooms.push(newRoom);
     persist();
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+      fetch('/api/settings', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ rooms: state.rooms, units: state.units })
+      });
+    } catch(e) {}
     toast(`Room ${nextNum} added to Azurevista`);
     render();
   };
 
   const addSuite = document.getElementById('set-add-unit-suite');
-  if(addSuite) addSuite.onclick = ()=>{
+  if(addSuite) addSuite.onclick = async ()=>{
     const nextNum = 'Azure Suite ' + (state.units.length + 1);
     const newUnit = { id: uid('UN'), property: 'azuresuite', number: nextNum, type: '2BHK Apartment', rate: 0, status: 'available' };
     state.units.push(newUnit);
     persist();
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+      fetch('/api/settings', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ rooms: state.rooms, units: state.units })
+      });
+    } catch(e) {}
     toast(`${nextNum} added to Azure Suite`);
     render();
   };
@@ -4507,6 +4577,15 @@ function events_settings(){
       confirmAction('Delete Room?', `Are you sure you want to delete ${room ? 'Room ' + room.number : 'this room'} from inventory?`, () => {
         state.rooms = state.rooms.filter(r => r.id !== roomId);
         persist();
+        try {
+          const headers = { 'Content-Type': 'application/json' };
+          if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+          fetch('/api/settings', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ rooms: state.rooms, units: state.units })
+          });
+        } catch(e) {}
         closeModal();
         toast('Room deleted from inventory');
         render();
@@ -4521,6 +4600,15 @@ function events_settings(){
       confirmAction('Delete Unit?', `Are you sure you want to delete ${unit ? unit.number : 'this unit'} from inventory?`, () => {
         state.units = state.units.filter(u => u.id !== unitId);
         persist();
+        try {
+          const headers = { 'Content-Type': 'application/json' };
+          if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+          fetch('/api/settings', {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ rooms: state.rooms, units: state.units })
+          });
+        } catch(e) {}
         closeModal();
         toast('Unit deleted from inventory');
         render();
@@ -4528,26 +4616,60 @@ function events_settings(){
     };
   });
 
-  document.getElementById('settings-save').onclick = ()=>{
+  document.getElementById('settings-save').onclick = async () => {
     const s = state.settings;
-    s.businessName = document.getElementById('set-bizname').value;
-    s.ownerEmail = document.getElementById('set-email').value;
-    s.address = document.getElementById('set-address').value;
-    s.tax = { cgst:+document.getElementById('set-cgst').value||0, sgst:+document.getElementById('set-sgst').value||0, igst:+document.getElementById('set-igst').value||0 };
-    s.invoicePrefix = document.getElementById('set-invprefix').value;
-    state.invoiceSeq = +document.getElementById('set-invseq').value||state.invoiceSeq;
+    s.businessName = document.getElementById('set-bizname').value.trim();
+    s.ownerEmail = document.getElementById('set-email').value.trim();
+    s.address = document.getElementById('set-address').value.trim();
+    s.tax = { cgst: +document.getElementById('set-cgst').value || 0, sgst: +document.getElementById('set-sgst').value || 0, igst: +document.getElementById('set-igst').value || 0 };
+    s.invoicePrefix = document.getElementById('set-invprefix').value.trim();
+    state.invoiceSeq = +document.getElementById('set-invseq').value || state.invoiceSeq;
     s.invoiceFooter = document.getElementById('set-invfooter').value;
     s.terms = document.getElementById('set-terms').value;
-    document.querySelectorAll('[data-p-checkin]').forEach(el=> state.properties[el.dataset.pCheckin].checkInTime = el.value);
-    document.querySelectorAll('[data-p-checkout]').forEach(el=> state.properties[el.dataset.pCheckout].checkOutTime = el.value);
-    document.querySelectorAll('[data-p-gstin]').forEach(el=> state.properties[el.dataset.pGstin].gstin = el.value);
-    document.querySelectorAll('[data-room-number]').forEach(el=>{ const r = state.rooms.find(x=>x.id===el.dataset.roomNumber); if(r) r.number = el.value; });
-    document.querySelectorAll('[data-room-type]').forEach(el=>{ const r = state.rooms.find(x=>x.id===el.dataset.roomType); if(r) r.type = el.value; });
-    document.querySelectorAll('[data-room-rate]').forEach(el=>{ const r = state.rooms.find(x=>x.id===el.dataset.roomRate); if(r) r.rate = +el.value||0; });
-    document.querySelectorAll('[data-unit-number]').forEach(el=>{ const u = state.units.find(x=>x.id===el.dataset.unitNumber); if(u) u.number = el.value; });
-    document.querySelectorAll('[data-unit-type]').forEach(el=>{ const u = state.units.find(x=>x.id===el.dataset.unitType); if(u) u.type = el.value; });
-    document.querySelectorAll('[data-unit-rate]').forEach(el=>{ const u = state.units.find(x=>x.id===el.dataset.unitRate); if(u) u.rate = +el.value||0; });
-    logAudit('Settings changed', 'all', 'Business/tax/room/unit settings'); persist(); toast('Settings saved'); render();
+    document.querySelectorAll('[data-p-checkin]').forEach(el => { if (state.properties[el.dataset.pCheckin]) state.properties[el.dataset.pCheckin].checkInTime = el.value; });
+    document.querySelectorAll('[data-p-checkout]').forEach(el => { if (state.properties[el.dataset.pCheckout]) state.properties[el.dataset.pCheckout].checkOutTime = el.value; });
+    document.querySelectorAll('[data-p-gstin]').forEach(el => { if (state.properties[el.dataset.pGstin]) state.properties[el.dataset.pGstin].gstin = el.value; });
+    document.querySelectorAll('[data-room-number]').forEach(el => { const r = state.rooms.find(x => x.id === el.dataset.roomNumber); if (r) r.number = el.value; });
+    document.querySelectorAll('[data-room-type]').forEach(el => { const r = state.rooms.find(x => x.id === el.dataset.roomType); if (r) r.type = el.value; });
+    document.querySelectorAll('[data-room-rate]').forEach(el => { const r = state.rooms.find(x => x.id === el.dataset.roomRate); if (r) r.rate = +el.value || 0; });
+    document.querySelectorAll('[data-unit-number]').forEach(el => { const u = state.units.find(x => x.id === el.dataset.unitNumber); if (u) u.number = el.value; });
+    document.querySelectorAll('[data-unit-type]').forEach(el => { const u = state.units.find(x => x.id === el.dataset.unitType); if (u) u.type = el.value; });
+    document.querySelectorAll('[data-unit-rate]').forEach(el => { const u = state.units.find(x => x.id === el.dataset.unitRate); if (u) u.rate = +el.value || 0; });
+
+    logAudit('Settings changed', 'all', 'Business/tax/room/unit settings');
+    persist();
+
+    const saveBtn = document.getElementById('settings-save');
+    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Saving settings...'; }
+
+    // Persist permanently to central database & server storage
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+      const res = await fetch('/api/settings', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          settings: s,
+          properties: state.properties,
+          rooms: state.rooms,
+          units: state.units,
+          invoiceSeq: state.invoiceSeq
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast('Settings permanently saved and synced to database!');
+      } else {
+        toast('Settings updated locally: ' + (data.message || 'Saved in memory'));
+      }
+    } catch (err) {
+      toast('Settings saved in local session');
+    } finally {
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Save all settings'; }
+    }
+
+    render();
   };
 }
 

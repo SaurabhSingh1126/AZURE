@@ -140,6 +140,7 @@ app.get('/api/state', async (req, res) => {
             dbStatus: { isConnected: false, dbType: dbInfo.dbType || 'Vercel Serverless (JSON Data Store Fallback)' },
             property: 'all',
             activeDevices: 1,
+            data: store,
             ...store
           });
         } catch (e) {
@@ -229,6 +230,50 @@ app.get('/api/state', async (req, res) => {
       dbType: dbInfo.dbType
     });
   } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/state — Bulk state synchronization endpoint for settings, properties, and configuration
+app.post('/api/state', async (req, res) => {
+  try {
+    const { settings, properties, rooms, units, invoiceSeq, suppliers, staff, maintenance, housekeeping, foodBills } = req.body;
+    const { updateStore } = require('./services/storeSync');
+
+    updateStore(store => {
+      if (settings) store.settings = { ...(store.settings || {}), ...settings };
+      if (properties) store.properties = { ...(store.properties || {}), ...properties };
+      if (Array.isArray(rooms)) store.rooms = rooms;
+      if (Array.isArray(units)) store.units = units;
+      if (invoiceSeq !== undefined) store.invoiceSeq = Number(invoiceSeq);
+      if (Array.isArray(suppliers)) store.suppliers = suppliers;
+      if (Array.isArray(staff)) store.staff = staff;
+      if (Array.isArray(maintenance)) store.maintenance = maintenance;
+      if (Array.isArray(housekeeping)) store.housekeeping = housekeeping;
+      if (Array.isArray(foodBills)) store.foodBills = foodBills;
+    });
+
+    if (mongoose.connection.readyState === 1) {
+      const updateFields = {};
+      if (settings) updateFields.settings = settings;
+      if (properties) updateFields.properties = properties;
+      if (invoiceSeq !== undefined) updateFields.invoiceSeq = Number(invoiceSeq);
+      if (suppliers) updateFields.suppliers = suppliers;
+      if (staff) updateFields.staff = staff;
+      if (maintenance) updateFields.maintenance = maintenance;
+      if (housekeeping) updateFields.housekeeping = housekeeping;
+      if (foodBills) updateFields.foodBills = foodBills;
+
+      await Setting.findOneAndUpdate(
+        { key: 'system_settings' },
+        { $set: updateFields },
+        { upsert: true, new: true }
+      );
+    }
+
+    res.json({ success: true, message: 'State synchronized successfully to database and server storage.' });
+  } catch (err) {
+    console.error('[POST /api/state Error]:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 });

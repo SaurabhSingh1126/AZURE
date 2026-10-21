@@ -142,4 +142,107 @@ router.post('/invoices', optionalAuth, async (req, res) => {
   }
 });
 
+// POST /api/settings — Update system settings, business profile, taxes, properties, and rooms
+router.post('/settings', optionalAuth, async (req, res) => {
+  try {
+    const { settings, properties, rooms, units, invoiceSeq } = req.body;
+    const mongoose = require('mongoose');
+    const { updateStore } = require('../services/storeSync');
+
+    // 1. Update data_store.json immediately
+    updateStore(store => {
+      if (settings) store.settings = { ...(store.settings || {}), ...settings };
+      if (properties) store.properties = { ...(store.properties || {}), ...properties };
+      if (Array.isArray(rooms)) store.rooms = rooms;
+      if (Array.isArray(units)) store.units = units;
+      if (invoiceSeq !== undefined) store.invoiceSeq = Number(invoiceSeq);
+    });
+
+    // 2. If MongoDB is connected, update Setting and Room collections
+    if (mongoose.connection.readyState === 1) {
+      const updateFields = {};
+      if (settings) updateFields.settings = settings;
+      if (properties) updateFields.properties = properties;
+      if (invoiceSeq !== undefined) updateFields.invoiceSeq = Number(invoiceSeq);
+
+      await Setting.findOneAndUpdate(
+        { key: 'system_settings' },
+        { $set: updateFields },
+        { upsert: true, new: true }
+      );
+
+      // Update room rates, numbers, and types in Room collection
+      if (Array.isArray(rooms)) {
+        for (const r of rooms) {
+          if (r.id) {
+            await Room.findOneAndUpdate(
+              { id: r.id },
+              {
+                $set: {
+                  number: r.number,
+                  type: r.type,
+                  rate: Number(r.rate || 0),
+                  isUnit: false,
+                  property: r.property || 'azurevista'
+                }
+              },
+              { upsert: true }
+            );
+          }
+        }
+        const roomIds = rooms.map(r => r.id).filter(Boolean);
+        if (roomIds.length > 0) {
+          await Room.deleteMany({ isUnit: false, id: { $nin: roomIds } });
+        }
+      }
+
+      if (Array.isArray(units)) {
+        for (const u of units) {
+          if (u.id) {
+            await Room.findOneAndUpdate(
+              { id: u.id },
+              {
+                $set: {
+                  number: u.number,
+                  type: u.type,
+                  rate: Number(u.rate || 0),
+                  isUnit: true,
+                  property: u.property || 'azuresuite'
+                }
+              },
+              { upsert: true }
+            );
+          }
+        }
+        const unitIds = units.map(u => u.id).filter(Boolean);
+        if (unitIds.length > 0) {
+          await Room.deleteMany({ isUnit: true, id: { $nin: unitIds } });
+        }
+      }
+
+      // Record audit log
+      await AuditLog.create({
+        id: 'AL-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+        user: req.user?.name || 'Admin',
+        action: 'System Settings Updated',
+        property: 'all',
+        record: 'Settings',
+        date: new Date().toISOString()
+      }).catch(() => {});
+    }
+
+    broadcast('settings_updated', { settings, properties, rooms, units });
+
+    res.json({
+      success: true,
+      message: 'Settings updated successfully and synchronized to database.',
+      settings,
+      properties
+    });
+  } catch (err) {
+    console.error('[Settings Update Error]:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 module.exports = router;
