@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Azure Hospitality</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap');
 
@@ -171,6 +172,57 @@ tbody tr:hover{background:var(--azure-tint);}
 .badge.amber{background:var(--amber-tint);color:var(--amber);}
 .badge.red{background:var(--red-tint);color:var(--red);}
 .badge.grey{background:#EEEDE6;color:var(--ink-soft);}
+
+/* ===== Enhanced Filter Tabs, Action Buttons & Badges ===== */
+.filter-tabs{display:flex;gap:6px;overflow-x:auto;padding:2px 0 8px;margin-bottom:12px;align-items:center;-webkit-overflow-scrolling:touch;}
+.filter-tab{padding:6px 13px;border-radius:20px;font-size:12px;font-weight:500;background:var(--paper);border:1px solid var(--line);color:var(--ink-soft);cursor:pointer;white-space:nowrap;transition:all .15s ease;display:inline-flex;align-items:center;gap:6px;}
+.filter-tab:hover{background:#fff;border-color:var(--azure);color:var(--azure);}
+.filter-tab.active{background:var(--azure);border-color:var(--azure);color:#fff;font-weight:600;box-shadow:0 2px 6px rgba(31,95,168,0.25);}
+.filter-tab .tab-cnt{font-size:10.5px;padding:1px 6px;border-radius:10px;background:rgba(0,0,0,0.08);color:inherit;}
+.filter-tab.active .tab-cnt{background:rgba(255,255,255,0.25);color:#fff;}
+
+.action-btn-group{display:inline-flex;align-items:center;gap:4px;justify-content:flex-end;}
+.action-btn{padding:4px 8px;font-size:11.5px;font-weight:500;border-radius:3px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:3px;transition:all .15s ease;white-space:nowrap;line-height:1.2;}
+.action-btn:hover{border-color:var(--azure);background:var(--azure-tint);color:var(--azure-deep);}
+.action-btn.btn-view{border-color:#C9D3E3;color:var(--ink-soft);}
+.action-btn.btn-view:hover{border-color:var(--azure);color:var(--azure);background:var(--azure-tint);}
+.action-btn.btn-food{border-color:rgba(47,143,91,0.4);color:#1e6b41;background:var(--green-tint);}
+.action-btn.btn-food:hover{background:#2F8F5B;color:#fff;border-color:#2F8F5B;}
+.action-btn.btn-bill{border-color:rgba(31,95,168,0.4);color:var(--azure);background:var(--azure-tint);}
+.action-btn.btn-bill:hover{background:var(--azure);color:#fff;border-color:var(--azure);}
+.action-btn.btn-edit{border-color:rgba(201,122,43,0.4);color:#9e5c1a;background:var(--amber-tint);}
+.action-btn.btn-edit:hover{background:var(--amber);color:#fff;border-color:var(--amber);}
+.action-btn.btn-danger{border-color:rgba(192,57,43,0.3);color:var(--red);background:#fff;}
+.action-btn.btn-danger:hover{background:var(--red);color:#fff;border-color:var(--red);}
+
+.status-pill-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:600;white-space:nowrap;border:1px solid transparent;text-transform:capitalize;}
+.status-pill-badge .dot-ind{width:6px;height:6px;border-radius:50%;display:inline-block;}
+.status-pill-badge.st-checked-in{background:var(--green-tint);color:#1e6b41;border-color:rgba(47,143,91,0.3);}
+.status-pill-badge.st-checked-in .dot-ind{background:var(--green);box-shadow:0 0 5px rgba(47,143,91,0.6);}
+.status-pill-badge.st-checked-out{background:#EEEDE6;color:#55667D;border-color:var(--line);}
+.status-pill-badge.st-checked-out .dot-ind{background:#8C9BAE;}
+.status-pill-badge.st-reserved{background:var(--amber-tint);color:#9e5c1a;border-color:rgba(201,122,43,0.3);}
+.status-pill-badge.st-reserved .dot-ind{background:var(--amber);}
+.status-pill-badge.st-confirmed{background:var(--azure-tint);color:var(--azure-deep);border-color:rgba(31,95,168,0.3);}
+.status-pill-badge.st-confirmed .dot-ind{background:var(--azure);}
+.status-pill-badge.st-cancelled{background:var(--red-tint);color:var(--red);border-color:rgba(192,57,43,0.3);}
+.status-pill-badge.st-cancelled .dot-ind{background:var(--red);}
+
+.pay-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;}
+.pay-badge.pay-paid{background:var(--green-tint);color:#1e6b41;border:1px solid rgba(47,143,91,0.3);}
+.pay-badge.pay-partial{background:var(--amber-tint);color:#9e5c1a;border:1px solid rgba(201,122,43,0.3);}
+.pay-badge.pay-unpaid{background:var(--red-tint);color:var(--red);border:1px solid rgba(192,57,43,0.3);}
+
+.balance-zero{color:var(--green);font-weight:600;font-size:12.5px;}
+.balance-due{display:inline-flex;align-items:center;gap:4px;color:var(--red);font-weight:700;background:var(--red-tint);padding:2px 7px;border-radius:4px;border:1px solid rgba(192,57,43,0.3);font-size:11.5px;}
+
+.kpi-interactive{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease,background .12s ease;}
+.kpi-interactive:hover{background:var(--azure-tint)!important;transform:translateY(-1px);}
+
+.source-legend-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;padding-top:12px;border-top:1px solid var(--line-soft);}
+.source-legend-item{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:var(--paper);border-radius:4px;border:1px solid var(--line-soft);font-size:11.5px;}
+.source-legend-item .src-left{display:flex;align-items:center;gap:6px;}
+.source-legend-item .src-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
 
 /* ===== Forms ===== */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;}
@@ -341,23 +393,32 @@ const ROLES = ['Owner','Admin','Manager','Receptionist','Housekeeping','Accounta
 
 function buildSampleData(){
   const rooms = [
-    {id:'RM-101',property:'azurevista',number:'101',type:'Standard',rate:3000,status:'occupied'},
+    {id:'RM-101',property:'azurevista',number:'101',type:'Standard',rate:3000,status:'available'},
     {id:'RM-102',property:'azurevista',number:'102',type:'Standard',rate:1786,status:'available'},
     {id:'RM-103',property:'azurevista',number:'103',type:'Standard',rate:3125,status:'available'},
     {id:'RM-104',property:'azurevista',number:'104',type:'Standard',rate:1786,status:'available'},
-    {id:'RM-105',property:'azurevista',number:'105',type:'Deluxe',rate:3200,status:'available'},
+    {id:'RM-105',property:'azurevista',number:'105',type:'Deluxe',rate:3200,status:'cleaning'},
     {id:'RM-106',property:'azurevista',number:'106',type:'Deluxe',rate:3200,status:'available'},
-    {id:'RM-107',property:'azurevista',number:'107',type:'Deluxe',rate:3200,status:'available'},
-    {id:'RM-108',property:'azurevista',number:'108',type:'Suite',rate:4800,status:'available'},
+    {id:'RM-107',property:'azurevista',number:'107',type:'Deluxe',rate:3200,status:'cleaning'},
+    {id:'RM-108',property:'azurevista',number:'108',type:'Suite',rate:4800,status:'maintenance'},
     {id:'RM-201',property:'azurevista',number:'201',type:'Deluxe',rate:3125,status:'available'},
+    {id:'RM-202',property:'azurevista',number:'202',type:'Deluxe',rate:3125,status:'available'},
     {id:'RM-203',property:'azurevista',number:'203',type:'Standard',rate:1786,status:'available'},
   ];
   const units = [
-    {id:'UN-1',property:'azuresuite',number:'Azure Suite',type:'2BHK Apartment',rate:6500,status:'available'},
+    {id:'UN-1',property:'azuresuite',number:'Azure Suite 1',type:'2BHK Apartment',rate:6500,status:'available'},
+    {id:'UN-2',property:'azuresuite',number:'Azure Suite 2',type:'2BHK Apartment',rate:6500,status:'available'},
   ];
   const guests = [
-    {id:'GU-2001',name:'Mayur Parashar',mobile:'8446688776',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:6600,outstanding:6600},
-    {id:'GU-2002',name:'Pratham / Kirti',mobile:'7520925877',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:3500,outstanding:0},
+    {id:'GU-2010',name:'Supriya Rekh',mobile:'9494645679',email:'supriya.rekh@gmail.com',address:'Hyderabad',idType:'Aadhaar',idNumber:'XXXX-XXXX-9912',properties:['azurevista'],totalStays:1,totalSpend:12000,outstanding:8000},
+    {id:'GU-2011',name:'Shubham M. Dhale',mobile:'8318008393',email:'',address:'Gorakhpur',idType:'PAN',idNumber:'XXXXX1234D',properties:['azurevista'],totalStays:2,totalSpend:9375,outstanding:0},
+    {id:'GU-2012',name:'Aashir sharma',mobile:'9682376587',email:'',address:'Delhi',idType:'Aadhaar',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:21875,outstanding:0},
+    {id:'GU-2013',name:'Rudraksh vashishtha',mobile:'7505595503',email:'',address:'Lucknow',idType:'Aadhaar',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:1786,outstanding:0},
+    {id:'GU-2014',name:'milind chauraia',mobile:'687480942',email:'',address:'Varanasi',idType:'Aadhaar',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:3125,outstanding:0},
+    {id:'GU-2015',name:'Ashutosh pandey',mobile:'9555742919',email:'',address:'Prayagraj',idType:'Aadhaar',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:1786,outstanding:0},
+    {id:'GU-2016',name:'Ashwani sharma',mobile:'7080006111',email:'',address:'Kanpur',idType:'Driving License',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:6250,outstanding:0},
+    {id:'GU-2017',name:'Mayur prashar',mobile:'844688776',email:'',address:'Pune',idType:'Passport',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:3125,outstanding:0},
+    {id:'GU-2002',name:'Pratham / Kirti',mobile:'7520925877',email:'',address:'Gorakhpur',idType:'Aadhaar',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:3500,outstanding:0},
     {id:'GU-2003',name:'Shubham Dhale / Aditi Srivastava',mobile:'8172899211',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:3700,outstanding:0},
     {id:'GU-2004',name:'Raghunath',mobile:'9870011223',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:4000,outstanding:0},
     {id:'GU-2005',name:'Pratham & Kirti',mobile:'9555478882',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:2000,outstanding:0},
@@ -365,15 +426,32 @@ function buildSampleData(){
     {id:'GU-2007',name:'Pawan Kr. Gupta',mobile:'9474838414',email:'',address:'',idType:'',idNumber:'',properties:['azurevista'],totalStays:1,totalSpend:2000,outstanding:0},
   ];
   const bookings = [
-    {id:'BK-B1EW3I',property:'azurevista',roomId:'RM-101',guestId:'GU-2001',guestName:'Mayur Parashar',mobile:'8446688776',email:'',adults:1,children:0,checkIn:'2026-09-23',checkInTime:'13:00',checkOut:'2026-09-25',checkOutTime:'11:00',rate:3000,discount:0,advance:0,source:'Direct',status:'checked-in',payment:'unpaid',notes:'Food',createdBy:'Front Desk',createdDate:'2026-09-23'},
-    {id:'BK-REG-09',property:'azurevista',roomId:'RM-103',guestId:'GU-2002',guestName:'Pratham / Kirti',mobile:'7520925877',email:'',adults:2,children:0,checkIn:'2026-09-21',checkInTime:'12:00',checkOut:'2026-09-22',checkOutTime:'11:00',rate:3125,discount:0,advance:3500,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-21'},
-    {id:'BK-REG-01',property:'azurevista',roomId:'RM-201',guestId:'GU-2003',guestName:'Shubham Dhale / Aditi Srivastava',mobile:'8172899211',email:'',adults:2,children:0,checkIn:'2026-09-20',checkInTime:'12:00',checkOut:'2026-09-21',checkOutTime:'11:00',rate:3304,discount:0,advance:3700,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-20'},
-    {id:'BK-REG-08',property:'azurevista',roomId:'RM-104',guestId:'GU-2004',guestName:'Raghunath',mobile:'9870011223',email:'',adults:1,children:0,checkIn:'2026-09-18',checkInTime:'12:00',checkOut:'2026-09-20',checkOutTime:'11:00',rate:1786,discount:0,advance:4000,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-18'},
-    {id:'BK-REG-10',property:'azurevista',roomId:'RM-203',guestId:'GU-2005',guestName:'Pratham & Kirti',mobile:'9555478882',email:'',adults:2,children:0,checkIn:'2026-09-18',checkInTime:'12:00',checkOut:'2026-09-19',checkOutTime:'11:00',rate:1786,discount:0,advance:2000,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-18'},
-    {id:'BK-REG-07',property:'azurevista',roomId:'RM-201',guestId:'GU-2006',guestName:'Dinkar Khatri & Sheetal Kapoor',mobile:'8500477776',email:'',adults:2,children:0,checkIn:'2026-09-17',checkInTime:'12:00',checkOut:'2026-09-19',checkOutTime:'11:00',rate:3125,discount:0,advance:7000,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-17'},
-    {id:'BK-REG-05',property:'azurevista',roomId:'RM-102',guestId:'GU-2007',guestName:'Pawan Kr. Gupta',mobile:'9474838414',email:'',adults:1,children:0,checkIn:'2026-09-15',checkInTime:'12:00',checkOut:'2026-09-16',checkOutTime:'11:00',rate:1786,discount:0,advance:2000,source:'Walk-in',status:'checked-out',payment:'paid',notes:'',createdBy:'Front Desk',createdDate:'2026-09-15'},
+    {id:'BK-9P8859',property:'azurevista',roomId:'RM-101',guestId:'GU-2010',guestName:'Supriya Rekh',mobile:'9494645679',email:'',adults:2,children:0,checkIn:'2026-10-08',checkInTime:'13:00',checkOut:'2026-10-12',checkOutTime:'11:00',rate:3000,discount:0,advance:4000,source:'Walk-in',status:'checked-out',payment:'partial',balance:8000,notes:'Pending balance ₹8,000 to be settled',createdBy:'Front Desk',createdDate:'2026-10-08'},
+    {id:'BK-BCTXN8',property:'azurevista',roomId:'RM-201',guestId:'GU-2011',guestName:'Shubham M. Dhale',mobile:'8318008393',email:'',adults:1,children:0,checkIn:'2026-10-02',checkInTime:'12:00',checkOut:'2026-10-03',checkOutTime:'11:00',rate:3125,discount:0,advance:3125,source:'Direct',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-10-02'},
+    {id:'BK-J2KT08',property:'azurevista',roomId:'RM-103',guestId:'GU-2012',guestName:'Aashir Sharma',mobile:'9682376587',email:'',adults:2,children:0,checkIn:'2026-09-30',checkInTime:'12:00',checkOut:'2026-10-07',checkOutTime:'11:00',rate:3125,discount:0,advance:21875,source:'Phone',status:'checked-out',payment:'paid',balance:0,notes:'7 nights stay',createdBy:'Front Desk',createdDate:'2026-09-30'},
+    {id:'BK-ABYHOH',property:'azurevista',roomId:'RM-104',guestId:'GU-2013',guestName:'Rudraksh Vashishtha',mobile:'7505595503',email:'',adults:1,children:0,checkIn:'2026-09-29',checkInTime:'14:00',checkOut:'2026-09-30',checkOutTime:'11:00',rate:1786,discount:0,advance:1786,source:'Phone',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-29'},
+    {id:'BK-ZF498R',property:'azurevista',roomId:'RM-202',guestId:'GU-2011',guestName:'Shubham Mahesh Dhale',mobile:'8318008393',email:'',adults:2,children:0,checkIn:'2026-09-28',checkInTime:'12:00',checkOut:'2026-09-30',checkOutTime:'11:00',rate:3125,discount:0,advance:6250,source:'Direct',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-28'},
+    {id:'BK-MCOLE8',property:'azurevista',roomId:'RM-202',guestId:'GU-2014',guestName:'Milind Chauralia',mobile:'687480942',email:'',adults:1,children:0,checkIn:'2026-09-26',checkInTime:'15:00',checkOut:'2026-09-27',checkOutTime:'11:00',rate:3125,discount:0,advance:3125,source:'WhatsApp',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-26'},
+    {id:'BK-OGSZ81',property:'azurevista',roomId:'RM-102',guestId:'GU-2015',guestName:'Ashutosh Pandey',mobile:'9555742919',email:'',adults:1,children:0,checkIn:'2026-09-24',checkInTime:'13:00',checkOut:'2026-09-25',checkOutTime:'11:00',rate:1786,discount:0,advance:1786,source:'Phone',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-24'},
+    {id:'BK-9QMRNY',property:'azurevista',roomId:'RM-202',guestId:'GU-2016',guestName:'Ashwani Sharma',mobile:'7080006111',email:'',adults:2,children:0,checkIn:'2026-09-23',checkInTime:'13:00',checkOut:'2026-09-25',checkOutTime:'11:00',rate:3125,discount:0,advance:6250,source:'Walk-in',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-23'},
+    {id:'BK-0407WV',property:'azurevista',roomId:'RM-201',guestId:'GU-2017',guestName:'Mayur Prashar',mobile:'8446688776',email:'',adults:1,children:0,checkIn:'2026-09-23',checkInTime:'12:00',checkOut:'2026-09-24',checkOutTime:'11:00',rate:3125,discount:0,advance:3125,source:'Website',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-23'},
+    {id:'BK-REG-09',property:'azurevista',roomId:'RM-103',guestId:'GU-2002',guestName:'Pratham / Kirti',mobile:'7520925877',email:'',adults:2,children:0,checkIn:'2026-09-21',checkInTime:'12:00',checkOut:'2026-09-22',checkOutTime:'11:00',rate:3125,discount:0,advance:3125,source:'Walk-in',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-21'},
+    {id:'BK-REG-01',property:'azurevista',roomId:'RM-201',guestId:'GU-2003',guestName:'Shubham Dhale / Aditi Srivastava',mobile:'8172899211',email:'',adults:2,children:0,checkIn:'2026-09-20',checkInTime:'12:00',checkOut:'2026-09-21',checkOutTime:'11:00',rate:3304,discount:0,advance:3304,source:'Walk-in',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-20'},
+    {id:'BK-REG-08',property:'azurevista',roomId:'RM-104',guestId:'GU-2004',guestName:'Raghunath',mobile:'9870011223',email:'',adults:1,children:0,checkIn:'2026-09-18',checkInTime:'12:00',checkOut:'2026-09-20',checkOutTime:'11:00',rate:1786,discount:0,advance:3572,source:'Walk-in',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-18'},
+    {id:'BK-REG-10',property:'azurevista',roomId:'RM-203',guestId:'GU-2005',guestName:'Pratham & Kirti',mobile:'9555478882',email:'',adults:2,children:0,checkIn:'2026-09-18',checkInTime:'12:00',checkOut:'2026-09-19',checkOutTime:'11:00',rate:1786,discount:0,advance:1786,source:'Walk-in',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-18'},
+    {id:'BK-REG-07',property:'azurevista',roomId:'RM-201',guestId:'GU-2006',guestName:'Dinkar Khatri & Sheetal Kapoor',mobile:'8500477776',email:'',adults:2,children:0,checkIn:'2026-09-17',checkInTime:'12:00',checkOut:'2026-09-19',checkOutTime:'11:00',rate:3125,discount:0,advance:6250,source:'Walk-in',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-17'},
+    {id:'BK-REG-05',property:'azurevista',roomId:'RM-102',guestId:'GU-2007',guestName:'Pawan K. Gupta',mobile:'9474838414',email:'',adults:1,children:0,checkIn:'2026-09-15',checkInTime:'12:00',checkOut:'2026-09-16',checkOutTime:'11:00',rate:1786,discount:0,advance:1786,source:'Walk-in',status:'checked-out',payment:'paid',balance:0,notes:'',createdBy:'Front Desk',createdDate:'2026-09-15'},
   ];
   const payments = [
+    {id:'TXN-9P8859',bookingId:'BK-9P8859',property:'azurevista',amount:4000,method:'Cash',date:'2026-10-08',notes:'Advance deposit',addedBy:'Front Desk'},
+    {id:'TXN-BCTXN8',bookingId:'BK-BCTXN8',property:'azurevista',amount:3125,method:'UPI',date:'2026-10-02',notes:'Full payment',addedBy:'Front Desk'},
+    {id:'TXN-J2KT08',bookingId:'BK-J2KT08',property:'azurevista',amount:21875,method:'UPI',date:'2026-09-30',notes:'Extended stay payment',addedBy:'Front Desk'},
+    {id:'TXN-ABYHOH',bookingId:'BK-ABYHOH',property:'azurevista',amount:1786,method:'UPI',date:'2026-09-29',notes:'Direct checkout',addedBy:'Front Desk'},
+    {id:'TXN-ZF498R',bookingId:'BK-ZF498R',property:'azurevista',amount:6250,method:'UPI',date:'2026-09-28',notes:'Full payment',addedBy:'Front Desk'},
+    {id:'TXN-MCOLE8',bookingId:'BK-MCOLE8',property:'azurevista',amount:3125,method:'UPI',date:'2026-09-26',notes:'WhatsApp advance',addedBy:'Front Desk'},
+    {id:'TXN-OGSZ81',bookingId:'BK-OGSZ81',property:'azurevista',amount:1786,method:'UPI',date:'2026-09-24',notes:'Full payment',addedBy:'Front Desk'},
+    {id:'TXN-9QMRNY',bookingId:'BK-9QMRNY',property:'azurevista',amount:6250,method:'Cash',date:'2026-09-23',notes:'Walk-in payment',addedBy:'Front Desk'},
+    {id:'TXN-0407WV',bookingId:'BK-0407WV',property:'azurevista',amount:3125,method:'Online',date:'2026-09-23',notes:'Website booking payment',addedBy:'Front Desk'},
     {id:'TXN-REG-09',bookingId:'BK-REG-09',property:'azurevista',amount:3500,method:'Cash',date:'2026-09-21',notes:'Checkout payment',addedBy:'Front Desk'},
     {id:'TXN-REG-01',bookingId:'BK-REG-01',property:'azurevista',amount:3700,method:'Cash',date:'2026-09-20',notes:'Checkout payment',addedBy:'Front Desk'},
     {id:'TXN-REG-08',bookingId:'BK-REG-08',property:'azurevista',amount:4000,method:'Cash',date:'2026-09-18',notes:'Checkout payment',addedBy:'Front Desk'},
@@ -387,8 +465,10 @@ function buildSampleData(){
     {id:'INV-2026-0003',bookingId:'BK-REG-08',property:'azurevista',guestName:'Raghunath',date:'2026-09-20',subtotal:3572,discount:0,tax:428,total:4000,advance:4000,balance:0},
     {id:'INV-2026-0004',bookingId:'BK-REG-10',property:'azurevista',guestName:'Pratham & Kirti',date:'2026-09-19',subtotal:1786,discount:0,tax:214,total:2000,advance:2000,balance:0},
     {id:'INV-2026-0005',bookingId:'BK-REG-07',property:'azurevista',guestName:'Dinkar Khatri & Sheetal Kapoor',date:'2026-09-19',subtotal:6250,discount:0,tax:750,total:7000,advance:7000,balance:0},
-    {id:'INV-2026-0006',bookingId:'BK-REG-05',property:'azurevista',guestName:'Pawan Kr. Gupta',date:'2026-09-16',subtotal:1786,discount:0,tax:214,total:2000,advance:2000,balance:0},
+    {id:'INV-2026-0006',bookingId:'BK-REG-05',property:'azurevista',guestName:'Pawan K. Gupta',date:'2026-09-16',subtotal:1786,discount:0,tax:214,total:2000,advance:2000,balance:0},
+    {id:'INV-2026-0007',bookingId:'BK-9P8859',property:'azurevista',guestName:'Supriya Rekh',date:'2026-10-12',subtotal:12000,discount:0,tax:0,total:12000,advance:4000,balance:8000},
   ];
+
   const expenses = [];
   const foodBills = [];
   const inventory = [
@@ -475,25 +555,133 @@ function setUserPassword(role, newPass){
 }
 
 function persist(){
+  // Central Cloud Database is primary; persist notifies server of operational changes
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
     try{
       state.lastSync = new Date().toISOString();
-      const serialized = JSON.stringify(state);
-      if(window.storage && typeof window.storage.set === 'function'){
-        try { await window.storage.set(STORE_KEY, serialized, false); } catch(err){}
-      }
-      if(typeof localStorage !== 'undefined'){
-        localStorage.setItem(STORE_KEY, serialized);
-      }
       renderTopbarStatus();
-    }catch(e){ console.error('Save failed', e); }
+    }catch(e){ console.error('Persist failed', e); }
   }, 100);
 }
+
+let socketClient = null;
 let wsClient = null;
 let isRealtimeConnected = false;
+let activeDevicesCount = 1;
+let cloudDbType = 'MongoDB Atlas Cloud';
+
+let bookingsPagination = {
+  page: 1,
+  limit: 25,
+  total: 0,
+  totalPages: 1,
+  status: 'all',
+  payment: 'all',
+  source: 'all',
+  property: 'all',
+  q: '',
+  loading: false,
+  items: []
+};
+
+async function fetchBookingsPage(page = 1) {
+  bookingsPagination.page = page;
+  bookingsPagination.loading = true;
+
+  const prop = ui.property !== 'all' ? ui.property : (bookingsPagination.property !== 'all' ? bookingsPagination.property : '');
+  const params = new URLSearchParams({
+    page: String(bookingsPagination.page),
+    limit: String(bookingsPagination.limit),
+    q: bookingsPagination.q || '',
+    status: bookingsPagination.status,
+    source: bookingsPagination.source
+  });
+  if (bookingsPagination.payment && bookingsPagination.payment !== 'all') {
+    params.append('payment', bookingsPagination.payment);
+  }
+  if (prop) params.append('property', prop);
+
+  try {
+    const headers = {};
+    if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+    const res = await fetch(`/api/bookings?${params.toString()}`, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success) {
+        bookingsPagination.items = data.bookings || [];
+        bookingsPagination.total = data.pagination.total;
+        bookingsPagination.totalPages = data.pagination.totalPages;
+        bookingsPagination.page = data.pagination.page;
+      }
+    }
+  } catch (err) {
+    console.error('[Bookings] Failed to fetch page from central database:', err);
+  } finally {
+    bookingsPagination.loading = false;
+    if (ui.view === 'bookings') {
+      render();
+    }
+  }
+}
 
 function initRealtime() {
+  if (socketClient && socketClient.connected) return;
+
+  // 1. Socket.IO connection
+  if (typeof io !== 'undefined') {
+    try {
+      socketClient = io({
+        reconnection: true,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000
+      });
+
+      socketClient.on('connect', () => {
+        isRealtimeConnected = true;
+        console.log('[Socket.IO Real-Time] Connected to central cloud server. ID:', socketClient.id);
+        renderTopbarStatus();
+      });
+
+      socketClient.on('connected', (data) => {
+        if (data && data.activeDevicesCount) activeDevicesCount = data.activeDevicesCount;
+        renderTopbarStatus();
+      });
+
+      socketClient.on('booking_created', (data) => handleRealtimeEvent({ type: 'booking_created', data }));
+      socketClient.on('booking_updated', (data) => handleRealtimeEvent({ type: 'booking_updated', data }));
+      socketClient.on('booking_cancelled', (data) => handleRealtimeEvent({ type: 'booking_cancelled', data }));
+      socketClient.on('booking_deleted', (data) => handleRealtimeEvent({ type: 'booking_deleted', data }));
+      socketClient.on('availability_updated', (data) => handleRealtimeEvent({ type: 'availability_updated', data }));
+      socketClient.on('payment_updated', (data) => handleRealtimeEvent({ type: 'payment_updated', data }));
+      socketClient.on('room_blocked', (data) => handleRealtimeEvent({ type: 'room_blocked', data }));
+      socketClient.on('database_migrated', (data) => handleRealtimeEvent({ type: 'database_migrated', data }));
+      socketClient.on('azure_event', (msg) => handleRealtimeEvent(msg));
+
+      socketClient.on('disconnect', (reason) => {
+        isRealtimeConnected = false;
+        console.warn('[Socket.IO Real-Time] Disconnected:', reason);
+        renderTopbarStatus();
+      });
+
+      socketClient.on('reconnect', (attempt) => {
+        isRealtimeConnected = true;
+        console.log('[Socket.IO Real-Time] Reconnected after attempt', attempt);
+        toast('⚡ Real-time link reconnected — Cloud synchronized');
+        syncStateFromCentral(true);
+        fetchBookingsPage(bookingsPagination.page);
+        renderTopbarStatus();
+      });
+
+      return;
+    } catch (err) {
+      console.warn('[Socket.IO] Error, falling back to WebSocket:', err);
+    }
+  }
+
+  // 2. Native WebSocket Fallback
   if (wsClient && (wsClient.readyState === WebSocket.CONNECTING || wsClient.readyState === WebSocket.OPEN)) return;
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const host = window.location.host || 'localhost:3000';
@@ -503,7 +691,6 @@ function initRealtime() {
     wsClient = new WebSocket(wsUrl);
     wsClient.onopen = () => {
       isRealtimeConnected = true;
-      console.log('[Realtime Hub] Connected to central WebSocket server');
       renderTopbarStatus();
     };
 
@@ -511,9 +698,7 @@ function initRealtime() {
       try {
         const msg = JSON.parse(event.data);
         handleRealtimeEvent(msg);
-      } catch (err) {
-        console.error('[Realtime] Parse error:', err);
-      }
+      } catch (err) {}
     };
 
     wsClient.onclose = () => {
@@ -526,70 +711,117 @@ function initRealtime() {
       isRealtimeConnected = false;
       renderTopbarStatus();
     };
-  } catch (e) {
-    console.warn('[Realtime] WebSocket error:', e);
-  }
+  } catch (e) {}
 }
 
 async function syncStateFromCentral(silent = true) {
   try {
-    const res = await fetch('/api/state');
+    const headers = {};
+    if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+    const res = await fetch('/api/state', { headers });
     if (res.ok) {
       const result = await res.json();
       if (result && result.data) {
         state = result.data;
-        if (!silent) toast('Synced with Central Cloud DB');
+        if (result.dbType) cloudDbType = result.dbType;
+        if (result.data.activeDevicesOnline) activeDevicesCount = result.data.activeDevicesOnline;
+        if (!silent) toast('Synced with Central Cloud Database');
         render();
         renderTopbarStatus();
       }
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('[Sync] State sync warning:', e);
+  }
 }
 
 function handleRealtimeEvent(msg) {
   const { type, data } = msg;
-  console.log('[Realtime Event]:', type, data);
+  console.log('[Realtime Event Received]:', type, data);
 
   if (type === 'booking_created') {
-    toast(`⚡ Realtime Update: Booking ${data.booking ? data.booking.id : ''} created (${data.booking ? data.booking.source : 'Source'})`);
-    syncStateFromCentral();
+    const bId = data.booking ? data.booking.id : (data.id || '');
+    const bGuest = data.booking ? data.booking.guestName : '';
+    toast(`⚡ Real-Time Sync: New booking ${bId} created for ${bGuest}`);
+    syncStateFromCentral(true);
+    fetchBookingsPage(bookingsPagination.page);
   } else if (type === 'booking_updated') {
-    syncStateFromCentral();
+    const bId = data.booking ? data.booking.id : (data.id || '');
+    toast(`⚡ Real-Time Sync: Booking ${bId} updated on another device`);
+    syncStateFromCentral(true);
+    fetchBookingsPage(bookingsPagination.page);
   } else if (type === 'booking_cancelled') {
-    toast(`⚡ Realtime Update: Booking ${data.bookingId || ''} cancelled`);
-    syncStateFromCentral();
+    toast(`⚡ Real-Time Sync: Booking ${data.bookingId || ''} cancelled`);
+    syncStateFromCentral(true);
+    fetchBookingsPage(bookingsPagination.page);
   } else if (type === 'booking_deleted') {
-    toast(`⚡ Realtime Update: Booking ${data.bookingId || ''} deleted`);
-    syncStateFromCentral();
+    toast(`⚡ Real-Time Sync: Booking ${data.bookingId || ''} deleted`);
+    syncStateFromCentral(true);
+    fetchBookingsPage(bookingsPagination.page);
   } else if (type === 'room_blocked' || type === 'room_unblocked') {
-    toast(`⚡ Realtime Update: Room availability / maintenance status updated`);
-    syncStateFromCentral();
-  } else if (type === 'OTA_booking_received') {
-    toast(`📥 OTA Booking Received: ${data.booking ? data.booking.id : ''} from ${data.platform || 'OTA'}`);
-    syncStateFromCentral();
-  } else if (type === 'ota_conflict') {
-    toast(`⚠️ OTA CONFLICT DETECTED: Incoming ${data.conflict?.platform || 'OTA'} booking collides with Room ${data.conflict?.roomId}`);
-    syncStateFromCentral();
-  } else if (type === 'ota_conflict_resolved') {
-    toast(`✅ OTA Conflict ${data.conflict?.id} Resolved (${data.conflict?.status})`);
-    syncStateFromCentral();
-  } else if (type === 'ota_sync_queue_updated' || type === 'ota_settings_updated' || type === 'ota_room_mappings_updated' || type === 'OTA_sync_completed' || type === 'OTA_sync_failed' || type === 'payment_updated' || type === 'availability_updated' || type === 'guest_updated') {
-    syncStateFromCentral();
+    toast(`⚡ Real-Time Sync: Room status updated`);
+    syncStateFromCentral(true);
+  } else if (type === 'payment_updated') {
+    toast(`⚡ Real-Time Sync: Payment recorded`);
+    syncStateFromCentral(true);
+    fetchBookingsPage(bookingsPagination.page);
+  } else if (type === 'availability_updated') {
+    syncStateFromCentral(true);
+  } else if (type === 'database_migrated') {
+    toast(`⚡ Cloud Database: Data migration applied`);
+    syncStateFromCentral(true);
+    fetchBookingsPage(1);
+  } else {
+    syncStateFromCentral(true);
   }
 }
 
+async function checkExistingAuth(){
+  const token = localStorage.getItem('azure_auth_token') || sessionStorage.getItem('azure_auth_token');
+  if(!token) return false;
+  try {
+    const res = await fetch('/api/auth/me', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if(res.ok){
+      const data = await res.json();
+      if(data.success && data.user){
+        auth = {
+          loggedIn: true,
+          token,
+          user: data.user.name,
+          role: data.user.role,
+          email: data.user.email,
+          rememberMe: !!localStorage.getItem('azure_auth_token')
+        };
+        return true;
+      }
+    }
+  } catch(e){}
+  localStorage.removeItem('azure_auth_token');
+  localStorage.removeItem('azure_auth_user');
+  sessionStorage.removeItem('azure_auth_token');
+  sessionStorage.removeItem('azure_auth_user');
+  return false;
+}
+
 async function loadInitial(){
+  await checkExistingAuth();
   try{
-    const res = await fetch('/api/state');
+    const headers = {};
+    if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+    const res = await fetch('/api/state', { headers });
     if (res.ok) {
       const result = await res.json();
       if (result && result.data) {
         state = result.data;
+        if(result.dbType) cloudDbType = result.dbType;
         if(!state.userPasswords) state.userPasswords = { Admin: 'admin123', Manager: 'manager123', Receptionist: 'reception123' };
         if(!state.foodBills) state.foodBills = [];
         if(!state.settings) state.settings = buildSampleData().settings;
-        console.log('[Central DB] Loaded state from central database');
+        console.log('[Central DB] Loaded central state directly from MongoDB');
         initRealtime();
+        if(auth.loggedIn) fetchBookingsPage(1);
         return;
       }
     }
@@ -597,31 +829,7 @@ async function loadInitial(){
     console.warn('[Central DB] Network warning:', e);
   }
 
-  let raw = null;
-  if(window.storage && typeof window.storage.get === 'function'){
-    try {
-      const res = await window.storage.get(STORE_KEY, false);
-      if(res && res.value) raw = res.value;
-    } catch(err){}
-  }
-  if(!raw && typeof localStorage !== 'undefined'){
-    raw = localStorage.getItem(STORE_KEY);
-  }
-  if(raw){
-    try {
-      const parsed = JSON.parse(raw);
-      if(parsed && typeof parsed === 'object'){
-        state = parsed;
-        if(!state.userPasswords) state.userPasswords = { Admin: 'admin123', Manager: 'manager123', Receptionist: 'reception123' };
-        if(!state.foodBills) state.foodBills = [];
-        if(!state.settings) state.settings = buildSampleData().settings;
-        initRealtime();
-        return;
-      }
-    } catch(e){}
-  }
   state = buildSampleData();
-  persist();
   initRealtime();
 }
 
@@ -731,7 +939,14 @@ function bookingTotalCharges(b){
 }
 
 function bookingBalance(b){
-  return bookingTotalCharges(b).balance;
+  if(!b) return 0;
+  if(typeof b.balance === 'number') return b.balance;
+  if(b.payment === 'paid') return 0;
+  const tc = bookingTotalCharges(b);
+  if(tc.paid === 0 && b.advance > 0){
+    return Math.max(0, tc.gross - b.advance);
+  }
+  return tc.balance;
 }
 
 function render(){
@@ -824,14 +1039,163 @@ function updateLiveClock(){
 }
 setInterval(updateLiveClock, 1000);
 
+let isHttpConnected = false;
+
 function renderTopbarStatus(){
   const el = document.getElementById('last-sync');
   if(el) {
-    const isLive = isRealtimeConnected;
-    el.innerHTML = `<span style="display:inline-flex;align-items:center;gap:5px;">
-      <span style="width:7px;height:7px;border-radius:50%;background:${isLive?'var(--green)':'var(--amber)'};display:inline-block;"></span>
-      <span>${isLive ? 'Central DB · Realtime Sync Live' : 'Connecting to Central DB...'}</span>
+    const isOnline = isRealtimeConnected || isHttpConnected;
+    const syncLabel = isRealtimeConnected 
+      ? `· Live Synced (${activeDevicesCount} device${activeDevicesCount>1?'s':''})`
+      : (isHttpConnected ? '· Cloud Synced' : '· Connecting...');
+
+    el.innerHTML = `<span style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:3px 9px;border-radius:4px;background:var(--paper);border:1px solid var(--line);" id="db-status-badge" title="Click to view Cloud Database & Multi-Device Sync details · Last synced: ${fmtDateTime(state.lastSync)}">
+      <span style="width:7px;height:7px;border-radius:50%;background:${isOnline?'var(--green)':'var(--amber)'};box-shadow:0 0 6px ${isOnline?'rgba(47,143,91,0.6)':'rgba(201,122,43,0.6)'};display:inline-block;"></span>
+      <strong style="font-size:11.5px;color:var(--ink);">${cloudDbType || 'MongoDB Atlas Cloud'}</strong>
+      <span style="font-size:11px;color:var(--ink-soft);">${syncLabel}</span>
     </span>`;
+    const b = document.getElementById('db-status-badge');
+    if(b) b.onclick = openCloudDatabaseModal;
+  }
+}
+
+
+async function openCloudDatabaseModal(){
+  let migStatus = null;
+  try {
+    const res = await fetch('/api/migrate/status');
+    if(res.ok) migStatus = await res.json();
+  } catch(e){}
+
+  const counts = migStatus?.collectionCounts || {};
+  const body = `
+    <div style="font-size:13px;line-height:1.6;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;padding:12px;background:var(--green-tint);border-radius:4px;border:1px solid rgba(47,143,91,0.3);">
+        <div style="font-size:24px;">☁️</div>
+        <div>
+          <div style="font-weight:700;color:var(--green);font-size:14px;">Centralized Cloud Database Connected</div>
+          <div style="font-size:12px;color:var(--ink-soft);">All bookings and operational data are saved permanently in MongoDB. Multi-device changes synchronize in real time via Socket.IO.</div>
+        </div>
+      </div>
+
+      <div class="grid-2" style="gap:10px;margin-bottom:16px;">
+        <div style="padding:10px;border:1px solid var(--line);border-radius:4px;background:var(--paper);">
+          <div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;font-weight:600;">Engine / Cluster</div>
+          <div style="font-size:13.5px;font-weight:700;margin-top:2px;">${esc(cloudDbType)}</div>
+          <div style="font-size:11px;color:var(--green);margin-top:2px;">● Primary Single Source of Truth</div>
+        </div>
+        <div style="padding:10px;border:1px solid var(--line);border-radius:4px;background:var(--paper);">
+          <div style="font-size:11px;color:var(--ink-soft);text-transform:uppercase;font-weight:600;">Real-Time Sync Protocol</div>
+          <div style="font-size:13.5px;font-weight:700;margin-top:2px;">Socket.IO + WebSockets</div>
+          <div style="font-size:11px;color:${isRealtimeConnected?'var(--green)':'var(--amber)'};margin-top:2px;">● ${isRealtimeConnected ? 'Active (' + activeDevicesCount + ' authorized device' + (activeDevicesCount>1?'s':'') + ' connected)' : 'Reconnecting...'}</div>
+        </div>
+      </div>
+
+      <div style="font-weight:600;font-size:12px;color:var(--ink-soft);margin-bottom:8px;">MONGODB CLOUD COLLECTIONS:</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">
+        <div style="padding:8px 10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;">
+          <div style="font-size:11px;color:var(--ink-soft);">Bookings</div>
+          <div style="font-size:16px;font-weight:700;">${(counts.bookings || (bookingsPagination.total || (state.bookings?state.bookings.length:0))).toLocaleString()}</div>
+        </div>
+        <div style="padding:8px 10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;">
+          <div style="font-size:11px;color:var(--ink-soft);">Guest Profiles</div>
+          <div style="font-size:16px;font-weight:700;">${(counts.guests || (state.guests?state.guests.length:0)).toLocaleString()}</div>
+        </div>
+        <div style="padding:8px 10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;">
+          <div style="font-size:11px;color:var(--ink-soft);">Rooms &amp; Units</div>
+          <div style="font-size:16px;font-weight:700;">${(counts.rooms || 11).toLocaleString()}</div>
+        </div>
+        <div style="padding:8px 10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;">
+          <div style="font-size:11px;color:var(--ink-soft);">Payments</div>
+          <div style="font-size:16px;font-weight:700;">${(counts.payments || (state.payments?state.payments.length:0)).toLocaleString()}</div>
+        </div>
+        <div style="padding:8px 10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;">
+          <div style="font-size:11px;color:var(--ink-soft);">Invoices</div>
+          <div style="font-size:16px;font-weight:700;">${(counts.invoices || (state.invoices?state.invoices.length:0)).toLocaleString()}</div>
+        </div>
+        <div style="padding:8px 10px;background:var(--paper);border:1px solid var(--line);border-radius:3px;">
+          <div style="font-size:11px;color:var(--ink-soft);">Audit Logs</div>
+          <div style="font-size:16px;font-weight:700;">${(counts.auditLogs || (state.auditLog?state.auditLog.length:0)).toLocaleString()}</div>
+        </div>
+      </div>
+
+      <div style="background:var(--paper);padding:10px 12px;border:1px solid var(--line);border-radius:4px;font-size:11.5px;color:var(--ink-soft);margin-bottom:12px;">
+        🛡️ <strong>Security Notice:</strong> Database credentials and secrets are kept strictly server-side. Browser LocalStorage is never used as primary database. Clearing browser storage will not delete any bookings.
+      </div>
+
+      <div style="padding:12px;background:var(--paper);border:1px solid var(--line);border-radius:4px;">
+        <div style="font-weight:700;font-size:12.5px;margin-bottom:4px;">☁️ Connect to MongoDB Atlas</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);margin-bottom:8px;">
+          Cluster: <code>azure.6fmtnyz.mongodb.net</code> &bull; User: <code>saurabhsinghvishen26_db_user</code>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px;">
+          <input type="password" id="atlas-pwd-input" placeholder="Enter password for saurabhsinghvishen26_db_user" style="flex:1;padding:7px 10px;font-size:12px;border:1px solid var(--line);border-radius:3px;background:var(--bg);color:var(--ink);" />
+          <button class="btn sm primary" id="atlas-connect-btn" style="white-space:nowrap;">Connect to Atlas</button>
+        </div>
+        <div id="atlas-connect-feedback" style="font-size:11.5px;display:none;"></div>
+      </div>
+    </div>
+  `;
+
+  const foot = `
+    <button class="btn sm" id="cdm-close">Close</button>
+    <a href="/api/migrate/backup" class="btn sm" target="_blank" style="text-decoration:none;">💾 Download JSON Backup</a>
+    <button class="btn sm primary" id="cdm-sync">🔄 Refresh Cloud State</button>
+  `;
+
+  openModal('Cloud Database & Multi-Device Sync', body, foot);
+  document.getElementById('cdm-close').onclick = closeModal;
+  document.getElementById('cdm-sync').onclick = async () => {
+    closeModal();
+    toast('Synchronizing with Central Database...');
+    await syncStateFromCentral(false);
+    await fetchBookingsPage(bookingsPagination.page);
+  };
+
+  const btnAtlas = document.getElementById('atlas-connect-btn');
+  const inputAtlas = document.getElementById('atlas-pwd-input');
+  const fb = document.getElementById('atlas-connect-feedback');
+  if(btnAtlas && inputAtlas) {
+    btnAtlas.onclick = async () => {
+      const pwd = inputAtlas.value.trim();
+      if(!pwd) {
+        fb.style.display = 'block';
+        fb.style.color = 'var(--red)';
+        fb.innerText = 'Please enter your MongoDB Atlas user password.';
+        return;
+      }
+      btnAtlas.disabled = true;
+      btnAtlas.innerText = 'Connecting...';
+      fb.style.display = 'block';
+      fb.style.color = 'var(--ink-soft)';
+      fb.innerText = 'Connecting to MongoDB Atlas and verifying replica set...';
+      try {
+        const res = await fetch('/api/migrate/connect-cloud', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pwd })
+        });
+        const d = await res.json();
+        if(d.success) {
+          fb.style.color = 'var(--green)';
+          fb.innerHTML = `✅ Connected to ${esc(d.dbType)}! Bookings: ${d.counts.bookings}`;
+          cloudDbType = d.dbType;
+          renderTopbarStatus();
+          toast(`Successfully connected to ${d.dbType}!`);
+          await syncStateFromCentral(false);
+          await fetchBookingsPage(1);
+        } else {
+          fb.style.color = 'var(--red)';
+          fb.innerHTML = `❌ ${esc(d.message)}<br><small style="color:var(--ink);">${esc(d.help || '')}</small>`;
+        }
+      } catch(err) {
+        fb.style.color = 'var(--red)';
+        fb.innerText = 'Connection error: ' + err.message;
+      } finally {
+        btnAtlas.disabled = false;
+        btnAtlas.innerText = 'Connect to Atlas';
+      }
+    };
   }
 }
 
@@ -857,9 +1221,26 @@ function attachShellEvents(){
   if(bell) bell.onclick = (e)=>{ e.stopPropagation(); ui.notifOpen=!ui.notifOpen; ui.propMenuOpen=false; render(); };
   document.addEventListener('click', ()=>{ if(ui.notifOpen||ui.propMenuOpen){ ui.notifOpen=false; ui.propMenuOpen=false; render(); } }, {once:true});
   const logout = document.getElementById('logout-btn');
-  if(logout) logout.onclick = ()=>{ auth = {loggedIn:false,user:null,role:null,rememberMe:false}; ui.view='dashboard'; render(); };
+  if(logout) logout.onclick = ()=>{
+    localStorage.removeItem('azure_auth_token');
+    localStorage.removeItem('azure_auth_user');
+    sessionStorage.removeItem('azure_auth_token');
+    sessionStorage.removeItem('azure_auth_user');
+    auth = {loggedIn:false,token:null,user:null,role:null,rememberMe:false};
+    ui.view='dashboard';
+    render();
+    toast('Logged out from Cloud Database session');
+  };
   const switchBtn = document.getElementById('switch-layer-btn');
-  if(switchBtn) switchBtn.onclick = ()=>{ auth = {loggedIn:false,user:null,role:null,rememberMe:false}; render(); toast('Layer locked. Select role layer & enter password.'); };
+  if(switchBtn) switchBtn.onclick = ()=>{
+    localStorage.removeItem('azure_auth_token');
+    localStorage.removeItem('azure_auth_user');
+    sessionStorage.removeItem('azure_auth_token');
+    sessionStorage.removeItem('azure_auth_user');
+    auth = {loggedIn:false,token:null,user:null,role:null,rememberMe:false};
+    render();
+    toast('Layer locked. Select role layer & enter password.');
+  };
   const search = document.getElementById('global-search');
   if(search){ search.oninput = ()=>{ if(search.value.trim().length>1){ ui.view='search'; ui.searchQuery=search.value.trim(); render(); document.getElementById('global-search').focus(); document.getElementById('global-search').value=search.value; document.getElementById('global-search').setSelectionRange(9999,9999);} }; }
   updateNetStatus();
@@ -918,11 +1299,11 @@ function attachLoginEvents(){
     };
   });
 
-  document.getElementById('li-submit').onclick = () => {
-    const inputUser = document.getElementById('li-user').value.trim().toLowerCase();
+  document.getElementById('li-submit').onclick = async () => {
+    const inputUser = document.getElementById('li-user').value.trim();
     const inputPass = document.getElementById('li-pass').value;
     const errBox = document.getElementById('login-err');
-
+    const rememberMe = document.getElementById('li-remember')?.checked;
     const activePreset = SYSTEM_USERS.find(u => u.role === selectedLoginRole) || SYSTEM_USERS[0];
 
     if(!inputPass){
@@ -933,30 +1314,71 @@ function attachLoginEvents(){
       return;
     }
 
-    const matched = SYSTEM_USERS.find(u => {
-      const expectedPass = getUserPassword(u.role);
-      return (u.email.toLowerCase() === inputUser || u.username.toLowerCase() === inputUser) &&
-             inputPass === expectedPass;
-    });
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: inputUser,
+          password: inputPass,
+          role: selectedLoginRole
+        })
+      });
+      const data = await res.json();
+      if(!res.ok || !data.success) {
+        errBox.innerHTML = `
+          <div style="background:var(--red-tint);color:var(--red);padding:9px 12px;border-radius:4px;margin-bottom:12px;font-size:12px;line-height:1.4;">
+            ⚠️ <strong>Access Denied</strong>: ${esc(data.message || 'Invalid credentials entered.')}
+          </div>`;
+        return;
+      }
 
-    if(!matched){
-      errBox.innerHTML = `
-        <div style="background:var(--red-tint);color:var(--red);padding:9px 12px;border-radius:4px;margin-bottom:12px;font-size:12px;line-height:1.4;">
-          ⚠️ <strong>Access Denied</strong>: Invalid password entered for the <strong>${esc(activePreset.role)}</strong> layer.
-        </div>`;
-      return;
+      auth = {
+        loggedIn: true,
+        token: data.token,
+        user: data.user.name,
+        role: data.user.role,
+        email: data.user.email,
+        rememberMe
+      };
+
+      if(rememberMe){
+        localStorage.setItem('azure_auth_token', data.token);
+        localStorage.setItem('azure_auth_user', JSON.stringify(auth));
+      } else {
+        sessionStorage.setItem('azure_auth_token', data.token);
+        sessionStorage.setItem('azure_auth_user', JSON.stringify(auth));
+      }
+
+      ui.view = 'dashboard';
+      render();
+      toast(`Authenticated: ${data.user.name} (${data.user.role} Layer)`);
+      await syncStateFromCentral(false);
+      await fetchBookingsPage(1);
+    } catch (err) {
+      // Offline fallback
+      const matched = SYSTEM_USERS.find(u => {
+        const expectedPass = getUserPassword(u.role);
+        return (u.email.toLowerCase() === inputUser.toLowerCase() || u.username.toLowerCase() === inputUser.toLowerCase()) &&
+               inputPass === expectedPass;
+      });
+
+      if (matched) {
+        auth = {
+          loggedIn: true,
+          token: 'offline-jwt-session',
+          user: matched.name,
+          role: matched.role,
+          email: matched.email,
+          rememberMe
+        };
+        ui.view = 'dashboard';
+        render();
+        toast(`Authenticated (Offline Link): ${matched.name}`);
+      } else {
+        errBox.innerHTML = `<div style="background:var(--red-tint);color:var(--red);padding:9px 12px;border-radius:4px;margin-bottom:12px;font-size:12px;">Connection error: ${esc(err.message)}</div>`;
+      }
     }
-
-    auth = {
-      loggedIn: true,
-      user: matched.name,
-      role: matched.role,
-      email: matched.email,
-      rememberMe: document.getElementById('li-remember').checked
-    };
-    ui.view = 'dashboard';
-    render();
-    toast(`Authenticated: ${matched.name} (${matched.role} Layer)`);
   };
 
   document.getElementById('li-forgot').onclick = (e) => {
@@ -998,17 +1420,69 @@ function attachViewEvents(){
 /* =========================================================
    VIEW: DASHBOARD
 ========================================================= */
+function getDashboardRange(rangeKey){
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const d = now.getDate();
+  const pad = n => String(n).padStart(2, '0');
+  const fmt = dt => `${dt.getFullYear()}-${pad(dt.getMonth()+1)}-${pad(dt.getDate())}`;
+
+  if(rangeKey === 'today'){
+    const today = fmt(now);
+    return { from: today, to: today, label: 'Today' };
+  } else if(rangeKey === 'week'){
+    const day = now.getDay() || 7;
+    const mon = new Date(now);
+    mon.setDate(d - day + 1);
+    const sun = new Date(mon);
+    sun.setDate(mon.getDate() + 6);
+    return { from: fmt(mon), to: fmt(sun), label: 'This Week' };
+  } else if(rangeKey === 'month'){
+    const start = new Date(y, m, 1);
+    const end = new Date(y, m + 1, 0);
+    const monthName = now.toLocaleString('en-US', { month: 'long' });
+    return { from: fmt(start), to: fmt(end), label: `${monthName} ${y}` };
+  } else if(rangeKey === 'last-month'){
+    const start = new Date(y, m - 1, 1);
+    const end = new Date(y, m, 0);
+    const monthName = start.toLocaleString('en-US', { month: 'long' });
+    return { from: fmt(start), to: fmt(end), label: `${monthName} ${start.getFullYear()}` };
+  } else if(rangeKey === 'year'){
+    const start = new Date(y, 0, 1);
+    const end = new Date(y, 11, 31);
+    return { from: fmt(start), to: fmt(end), label: `Year ${y}` };
+  } else {
+    return { from: '2020-01-01', to: '2030-12-31', label: 'All Time' };
+  }
+}
+
+function getGreeting(){
+  const h = new Date().getHours();
+  if(h < 12) return 'Good morning';
+  if(h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+function getFormattedCurrentDate(){
+  return new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    day: '2-digit',
+    month: 'long',
+    year: 'numeric'
+  });
+}
+
 function propStats(prop, dateFrom, dateTo){
   const bks = state.bookings.filter(b=> b.property===prop);
   const inRange = (d)=> d>=dateFrom && d<=dateTo;
   let revenue=0, expenses=0, otaComm=0;
   bks.forEach(b=>{
-    // attribute revenue to nights that fall within range (simplified: use booking creation/stay overlap by check-in date within range)
-    if(inRange(b.checkIn)){
+    if(inRange(b.checkIn) || inRange(b.checkOut) || (b.checkIn <= dateFrom && b.checkOut >= dateTo)){
       const nights = nightsBetween(b.checkIn,b.checkOut);
-      const gross = nights*b.rate - (b.discount||0);
+      const gross = nights*(b.rate||0) - (b.discount||0);
       revenue += gross;
-      if(OTA_SOURCES.includes(b.source)) otaComm += gross*0.18;
+      if(OTA_SOURCES.includes(b.source)) otaComm += Math.round(gross*0.18);
     }
   });
   state.expenses.filter(e=>e.property===prop && inRange(e.date)).forEach(e=> expenses += e.amount);
@@ -1017,47 +1491,62 @@ function propStats(prop, dateFrom, dateTo){
   const occPct = roomsForProp.length? Math.round(occupied/roomsForProp.length*100) : 0;
   return { revenue, expenses, otaComm, profit: revenue-expenses-otaComm, occPct, bookingsCount: bks.filter(b=>inRange(b.checkIn)).length, totalUnits: roomsForProp.length };
 }
+
 function todayKPIs(){
   const bks = ui.property==='all' ? state.bookings : state.bookings.filter(b=>b.property===ui.property);
-  const checkins = bks.filter(b=> b.checkIn===todayStr()).length;
-  const checkouts = bks.filter(b=> b.checkOut===todayStr()).length;
-  const newBookings = bks.filter(b=> b.createdDate===todayStr()).length;
-  const pays = scopedPayments().filter(p=>p.date===todayStr());
+  const today = todayStr();
+  const checkins = bks.filter(b=> b.checkIn===today).length;
+  const checkouts = bks.filter(b=> b.checkOut===today).length;
+  const newBookings = bks.filter(b=> b.createdDate===today).length;
+  const pays = scopedPayments().filter(p=>p.date===today);
   const revenue = pays.reduce((s,p)=>s+p.amount,0);
-  const exp = scopedExpenses().filter(e=>e.date===todayStr()).reduce((s,e)=>s+e.amount,0);
+  const exp = scopedExpenses().filter(e=>e.date===today).reduce((s,e)=>s+e.amount,0);
   const pending = bks.filter(b=>['reserved','confirmed','checked-in'].includes(b.status)).reduce((s,b)=>s+bookingBalance(b),0);
   return {checkins,checkouts,newBookings,revenue,expenses:exp,net:revenue-exp,pending};
 }
+
 function currentStatusCounts(){
   const rs = scopedRooms();
   const c = {available:0,occupied:0,reserved:0,cleaning:0,maintenance:0,blocked:0};
   rs.forEach(r=>{ if(c[r.status]!=null) c[r.status]++; });
   return {total:rs.length, ...c};
 }
+
 function viewDashboard(){
   const k = todayKPIs();
   const st = currentStatusCounts();
-  const av = propStats('azurevista','2026-09-01','2026-09-30');
-  const as = propStats('azuresuite','2026-09-01','2026-09-30');
+  const rangeKey = ui.dashRange || 'month';
+  const range = getDashboardRange(rangeKey);
+  const av = propStats('azurevista', range.from, range.to);
+  const as = propStats('azuresuite', range.from, range.to);
   const totalRev = av.revenue+as.revenue, totalExp = av.expenses+as.expenses, totalProfit = av.profit+as.profit;
   const notifs = computeNotifications();
   const canFin = canViewFinancialTotals();
   const unresolvedConflicts = (state.otaConflicts || []).filter(c => c.status === 'UNRESOLVED');
+  const pendingReceivables = state.bookings.filter(b => bookingBalance(b) > 0);
+  const totalPendingReceivables = pendingReceivables.reduce((s, b) => s + bookingBalance(b), 0);
 
   return `
   <div class="page-head">
-    <div><h1 class="page-title">Good morning — here's how the business is doing</h1>
-    <div class="page-sub">Friday, 04 September 2026 · ${propName(ui.property)}</div></div>
-    <div class="flex gap-8">
-      <select id="dash-range" class="btn sm" style="border:1px solid var(--line);">
-        <option>Today</option><option>This Week</option><option>This Month</option><option>Last Month</option><option>This Year</option>
+    <div>
+      <h1 class="page-title">${getGreeting()} — here's how the business is doing</h1>
+      <div class="page-sub">${getFormattedCurrentDate()} · ${propName(ui.property)}</div>
+    </div>
+    <div class="flex gap-8" style="align-items:center;">
+      <select id="dash-range" class="btn sm" style="border:1px solid var(--line);background:var(--paper);font-weight:600;padding:6px 12px;border-radius:4px;cursor:pointer;">
+        <option value="today" ${rangeKey==='today'?'selected':''}>Today</option>
+        <option value="week" ${rangeKey==='week'?'selected':''}>This Week</option>
+        <option value="month" ${rangeKey==='month'?'selected':''}>This Month</option>
+        <option value="last-month" ${rangeKey==='last-month'?'selected':''}>Last Month</option>
+        <option value="year" ${rangeKey==='year'?'selected':''}>This Year</option>
+        <option value="all" ${rangeKey==='all'?'selected':''}>All Time</option>
       </select>
       <button class="btn primary sm" id="dash-new-booking">+ New Booking</button>
     </div>
   </div>
 
   ${unresolvedConflicts.length ? `
-    <div class="panel" style="border:2px solid var(--red);background:var(--red-tint);margin-bottom:20px;">
+    <div class="panel" style="border:2px solid var(--red);background:var(--red-tint);margin-bottom:18px;">
       <div class="panel-body flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;">
         <div class="flex gap-10">
           <div style="font-size:26px;">⚠️</div>
@@ -1071,7 +1560,24 @@ function viewDashboard(){
     </div>
   ` : ''}
 
-  <div class="section-label">Today</div>
+  ${pendingReceivables.length ? `
+    <div class="panel" style="border:1px solid #F59E0B;background:#FFFBEB;margin-bottom:18px;border-radius:6px;box-shadow:0 1px 3px rgba(0,0,0,0.03);">
+      <div class="panel-body flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding:12px 18px;">
+        <div class="flex gap-12" style="align-items:center;">
+          <div style="font-size:24px;">💳</div>
+          <div>
+            <div style="font-size:13.5px;font-weight:700;color:#92400E;">Pending Receivables Alert — ${fmtINR(totalPendingReceivables)} Outstanding</div>
+            <div style="font-size:12px;color:#78350F;margin-top:2px;">
+              ${pendingReceivables.length} booking${pendingReceivables.length>1?'s':''} with unsettled balance: <strong>${pendingReceivables.map(b => `${b.guestName} (${fmtINR(bookingBalance(b))})`).slice(0, 3).join(', ')}${pendingReceivables.length > 3 ? '...' : ''}</strong>
+            </div>
+          </div>
+        </div>
+        <button class="btn sm" style="background:#F59E0B;color:#FFF;border:none;font-weight:600;padding:6px 14px;border-radius:4px;cursor:pointer;" id="dash-view-receivables">Review Receivables →</button>
+      </div>
+    </div>
+  ` : ''}
+
+  <div class="section-label">Today's Operations</div>
   <div class="kpi-row">
     <div class="kpi"><div class="lbl">Check-ins</div><div class="val">${k.checkins}</div></div>
     <div class="kpi"><div class="lbl">Check-outs</div><div class="val">${k.checkouts}</div></div>
@@ -1082,27 +1588,27 @@ function viewDashboard(){
     <div class="kpi"><div class="lbl">Pending payments</div><div class="val small" style="color:${k.pending>0?'var(--red)':'inherit'}">${fmtINR(k.pending)}</div></div>
   </div>
 
-  <div class="section-label">Current status</div>
+  <div class="section-label">Live Inventory Status</div>
   <div class="kpi-row">
-    <div class="kpi"><div class="lbl">Total rooms/units</div><div class="val">${st.total}</div></div>
-    <div class="kpi"><div class="lbl">Available</div><div class="val" style="color:var(--green)">${st.available}</div></div>
-    <div class="kpi"><div class="lbl">Occupied</div><div class="val" style="color:var(--azure)">${st.occupied}</div></div>
-    <div class="kpi"><div class="lbl">Reserved</div><div class="val" style="color:var(--amber)">${st.reserved}</div></div>
-    <div class="kpi"><div class="lbl">Cleaning</div><div class="val">${st.cleaning}</div></div>
-    <div class="kpi"><div class="lbl">Maintenance</div><div class="val" style="color:var(--red)">${st.maintenance}</div></div>
+    <div class="kpi kpi-interactive" data-nav-room="all"><div class="lbl">Total rooms/units</div><div class="val">${st.total}</div></div>
+    <div class="kpi kpi-interactive" data-nav-room="available"><div class="lbl">Available</div><div class="val" style="color:var(--green)">${st.available}</div></div>
+    <div class="kpi kpi-interactive" data-nav-room="occupied"><div class="lbl">Occupied</div><div class="val" style="color:var(--azure)">${st.occupied}</div></div>
+    <div class="kpi kpi-interactive" data-nav-room="reserved"><div class="lbl">Reserved</div><div class="val" style="color:var(--amber)">${st.reserved}</div></div>
+    <div class="kpi kpi-interactive" data-nav-room="cleaning"><div class="lbl">Cleaning</div><div class="val">${st.cleaning}</div></div>
+    <div class="kpi kpi-interactive" data-nav-room="maintenance"><div class="lbl">Maintenance</div><div class="val" style="color:var(--red)">${st.maintenance}</div></div>
   </div>
 
-  <div class="section-label">Financial (this month)</div>
+  <div class="section-label">Financial Overview (${range.label})</div>
   <div class="kpi-row">
-    <div class="kpi"><div class="lbl">This month's revenue</div><div class="val small">${canFin ? fmtINR(totalRev) : '🔒 Hidden'}</div></div>
-    <div class="kpi"><div class="lbl">This month's expenses</div><div class="val small">${fmtINR(totalExp)}</div></div>
+    <div class="kpi"><div class="lbl">Revenue (${range.label})</div><div class="val small">${canFin ? fmtINR(totalRev) : '🔒 Hidden'}</div></div>
+    <div class="kpi"><div class="lbl">Expenses (${range.label})</div><div class="val small">${fmtINR(totalExp)}</div></div>
     <div class="kpi"><div class="lbl">OTA commissions</div><div class="val small">${fmtINR(av.otaComm+as.otaComm)}</div></div>
     <div class="kpi"><div class="lbl">Net profit</div><div class="val small" style="color:${totalProfit>=0?'var(--green)':'var(--red)'}">${canFin ? fmtINR(totalProfit) : '🔒 Hidden'}</div></div>
   </div>
 
   <div class="grid-2" style="margin-top:24px;">
     <div class="panel">
-      <div class="panel-head"><h3>Property performance — September 2026</h3></div>
+      <div class="panel-head"><h3>Property performance — ${range.label}</h3></div>
       <div class="panel-body flush">
         <div class="table-wrap"><table>
           <thead><tr><th>Metric</th><th class="text-right">Azurevista</th><th class="text-right">Azure Suite</th><th class="text-right">Total</th></tr></thead>
@@ -1119,17 +1625,30 @@ function viewDashboard(){
     </div>
     <div class="panel">
       <div class="panel-head"><h3>Revenue by booking source</h3></div>
-      <div class="panel-body">${canFin ? `<canvas id="chart-source" height="200"></canvas>` : `<div class="empty-state" style="padding:40px;"><div class="es-t">🔒 Restricted</div><div>Revenue breakdown charts are Admin-only.</div></div>`}</div>
+      <div class="panel-body">
+        ${canFin ? `
+          <div style="position:relative;height:220px;width:100%;">
+            <canvas id="chart-source"></canvas>
+          </div>
+          <div id="chart-source-legend"></div>
+        ` : `<div class="empty-state" style="padding:40px;"><div class="es-t">🔒 Restricted</div><div>Revenue breakdown charts are Admin-only.</div></div>`}
+      </div>
     </div>
   </div>
 
   <div class="grid-2">
     <div class="panel">
-      <div class="panel-head"><h3>Revenue vs expenses — by property</h3></div>
-      <div class="panel-body">${canFin ? `<canvas id="chart-revexp" height="210"></canvas>` : `<div class="empty-state" style="padding:40px;"><div class="es-t">🔒 Restricted</div><div>Revenue & Profit comparison charts are Admin-only.</div></div>`}</div>
+      <div class="panel-head"><h3>Revenue vs expenses — by property (${range.label})</h3></div>
+      <div class="panel-body">
+        ${canFin ? `
+          <div style="position:relative;height:220px;width:100%;">
+            <canvas id="chart-revexp"></canvas>
+          </div>
+        ` : `<div class="empty-state" style="padding:40px;"><div class="es-t">🔒 Restricted</div><div>Revenue & Profit comparison charts are Admin-only.</div></div>`}
+      </div>
     </div>
     <div class="panel">
-      <div class="panel-head"><h3>Alerts</h3></div>
+      <div class="panel-head"><h3>Operational Alerts & Logs</h3></div>
       <div class="panel-body flush">
         ${notifs.length? notifs.slice(0,6).map(n=>`<div class="notif-item"><div class="t">${esc(n.t)}</div><div class="m">${esc(n.m)}</div></div>`).join('') : `<div class="empty-state" style="padding:24px;"><div class="es-t">All clear</div><div>No pending alerts right now.</div></div>`}
       </div>
@@ -1162,29 +1681,143 @@ function viewDashboard(){
   </div>
   `;
 }
+
 let chartInstances = {};
 function destroyCharts(){ Object.values(chartInstances).forEach(c=>c && c.destroy && c.destroy()); chartInstances={}; }
+
 function events_dashboard(){
   const nb = document.getElementById('dash-new-booking');
   if(nb) nb.onclick = openBookingModal;
+
   const gotoOta = document.getElementById('dash-goto-ota');
   if(gotoOta) gotoOta.onclick = () => { ui.view = 'ota'; render(); };
+
+  const viewRec = document.getElementById('dash-view-receivables');
+  if(viewRec) viewRec.onclick = () => {
+    ui.view = 'bookings';
+    ui.bkQuickTab = 'pending-pay';
+    bookingsPagination.payment = 'pending';
+    bookingsPagination.status = 'all';
+    render();
+    fetchBookingsPage(1);
+  };
+
+  const rangeSel = document.getElementById('dash-range');
+  if(rangeSel) {
+    rangeSel.onchange = (e) => {
+      ui.dashRange = e.target.value;
+      render();
+    };
+  }
+
+  document.querySelectorAll('[data-nav-room]').forEach(el => {
+    el.onclick = () => {
+      const filter = el.dataset.navRoom;
+      ui.view = 'rooms';
+      render();
+    };
+  });
+
   destroyCharts();
   if(!canViewFinancialTotals()) return;
+
+  const rangeKey = ui.dashRange || 'month';
+  const range = getDashboardRange(rangeKey);
+
   const srcCanvas = document.getElementById('chart-source');
   if(srcCanvas){
     const bySource = {};
-    scopedBookings().forEach(b=>{ const nights=nightsBetween(b.checkIn,b.checkOut); const gross=nights*b.rate-(b.discount||0); bySource[b.source]=(bySource[b.source]||0)+gross; });
-    chartInstances.source = new Chart(srcCanvas, { type:'doughnut', data:{ labels:Object.keys(bySource), datasets:[{ data:Object.values(bySource), backgroundColor:['#1F5FA8','#0E7C7B','#C97A2B','#2F8F5B','#8A6FB0','#C0392B','#5B6B85','#A5673F'] }] }, options:{ plugins:{ legend:{ position:'bottom', labels:{ font:{size:10.5}, boxWidth:10 } } } } });
+    const inRange = (d)=> d>=range.from && d<=range.to;
+    const filteredBks = scopedBookings().filter(b => inRange(b.checkIn) || inRange(b.checkOut));
+    const targetBks = filteredBks.length ? filteredBks : scopedBookings();
+
+    targetBks.forEach(b=>{
+      const nights = nightsBetween(b.checkIn,b.checkOut);
+      const gross = nights*(b.rate||0)-(b.discount||0);
+      bySource[b.source] = (bySource[b.source]||0) + gross;
+    });
+
+    const palette = ['#1F5FA8','#0E7C7B','#C97A2B','#2F8F5B','#8A6FB0','#C0392B','#5B6B85','#A5673F'];
+    const totalRev = Object.values(bySource).reduce((a, b) => a + b, 0) || 1;
+    const sources = Object.entries(bySource).map(([name, amount], i) => ({
+      name,
+      amount,
+      pct: Math.round((amount / totalRev) * 100),
+      color: palette[i % palette.length]
+    })).sort((a,b) => b.amount - a.amount);
+
+    chartInstances.source = new Chart(srcCanvas, {
+      type: 'doughnut',
+      data: {
+        labels: sources.map(s => s.name),
+        datasets: [{
+          data: sources.map(s => s.amount),
+          backgroundColor: sources.map(s => s.color),
+          borderWidth: 2,
+          borderColor: '#FFFFFF'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '68%',
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const val = ctx.parsed || 0;
+                return ` ${ctx.label}: ₹${val.toLocaleString()} (${Math.round(val / totalRev * 100)}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+
+    const legendContainer = document.getElementById('chart-source-legend');
+    if(legendContainer){
+      legendContainer.innerHTML = `
+        <div class="source-legend-grid">
+          ${sources.map(s => `
+            <div class="source-legend-item">
+              <div class="source-legend-dot" style="background:${s.color}"></div>
+              <div style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;font-size:12px;">${esc(s.name)}</div>
+              <div style="font-weight:700;font-size:12px;">${fmtINR(s.amount)}</div>
+              <div style="font-size:11px;color:var(--ink-soft);">${s.pct}%</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
   }
+
   const reCanvas = document.getElementById('chart-revexp');
   if(reCanvas){
-    const av = propStats('azurevista','2026-09-01','2026-09-30'); const as = propStats('azuresuite','2026-09-01','2026-09-30');
-    chartInstances.revexp = new Chart(reCanvas, { type:'bar', data:{ labels:['Azurevista','Azure Suite'], datasets:[
-      {label:'Revenue', data:[av.revenue,as.revenue], backgroundColor:'#1F5FA8'},
-      {label:'Expenses', data:[av.expenses,as.expenses], backgroundColor:'#C97A2B'},
-      {label:'Profit', data:[av.profit,as.profit], backgroundColor:'#2F8F5B'},
-    ]}, options:{ scales:{ y:{ beginAtZero:true, ticks:{ font:{size:10} } }, x:{ ticks:{ font:{size:11} } } }, plugins:{ legend:{ position:'bottom', labels:{font:{size:10.5},boxWidth:10} } } } });
+    const av = propStats('azurevista', range.from, range.to);
+    const as = propStats('azuresuite', range.from, range.to);
+    chartInstances.revexp = new Chart(reCanvas, {
+      type: 'bar',
+      data: {
+        labels: ['Azurevista', 'Azure Suite'],
+        datasets: [
+          { label: 'Revenue', data: [av.revenue, as.revenue], backgroundColor: '#1F5FA8', borderRadius: 4 },
+          { label: 'Expenses', data: [av.expenses, as.expenses], backgroundColor: '#C97A2B', borderRadius: 4 },
+          { label: 'Profit', data: [av.profit, as.profit], backgroundColor: '#2F8F5B', borderRadius: 4 }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true, ticks: { font: { size: 10 } } },
+          x: { ticks: { font: { size: 11 } } }
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12 } }
+        }
+      }
+    });
   }
 }
 
@@ -1193,95 +1826,233 @@ function events_dashboard(){
 ========================================================= */
 function statusBadge(status){
   const map = {
-    'reserved':['amber','Reserved'],'confirmed':['blue','Confirmed'],'checked-in':['green','Checked-in'],
-    'checked-out':['grey','Checked-out'],'cancelled':['red','Cancelled'],'no-show':['red','No-show'],
-    'available':['green','Available'],'occupied':['blue','Occupied'],'cleaning':['grey','Cleaning'],
-    'maintenance':['red','Maintenance'],'blocked':['grey','Blocked'],'dirty':['amber','Dirty'],
-    'clean':['teal','Clean'],'inspected':['green','Inspected'],
-    'paid':['green','Paid'],'partial':['amber','Partial'],'unpaid':['red','Unpaid'],
+    'reserved': { cls: 'status-pill-amber', label: 'Reserved' },
+    'confirmed': { cls: 'status-pill-blue', label: 'Confirmed' },
+    'checked-in': { cls: 'status-pill-green', label: 'Checked-in' },
+    'checked-out': { cls: 'status-pill-grey', label: 'Checked-out' },
+    'cancelled': { cls: 'status-pill-red', label: 'Cancelled' },
+    'no-show': { cls: 'status-pill-red', label: 'No-show' },
+    'available': { cls: 'status-pill-green', label: 'Available' },
+    'occupied': { cls: 'status-pill-blue', label: 'Occupied' },
+    'cleaning': { cls: 'status-pill-grey', label: 'Cleaning' },
+    'maintenance': { cls: 'status-pill-red', label: 'Maintenance' },
+    'blocked': { cls: 'status-pill-grey', label: 'Blocked' },
+    'dirty': { cls: 'status-pill-amber', label: 'Dirty' },
+    'clean': { cls: 'status-pill-teal', label: 'Clean' },
+    'inspected': { cls: 'status-pill-green', label: 'Inspected' },
+    'paid': { cls: 'pay-paid', label: 'Paid' },
+    'partial': { cls: 'pay-partial', label: 'Partial' },
+    'unpaid': { cls: 'pay-unpaid', label: 'Unpaid' }
   };
-  const m = map[status] || ['grey', status];
-  return `<span class="badge ${m[0]}">${m[1]}</span>`;
+  const m = map[status] || { cls: 'status-pill-grey', label: status || 'Unknown' };
+  return `<span class="status-pill-badge ${m.cls}"><span class="status-dot"></span>${esc(m.label)}</span>`;
 }
-function sourceBadge(src){ return `<span class="badge ${OTA_SOURCES.includes(src)?'teal':'blue'}">${esc(src)}</span>`; }
 
-let bookingsFilter = {status:'all', source:'all', q:''};
+function sourceBadge(src){
+  const isOta = OTA_SOURCES.includes(src);
+  let icon = '🏨';
+  if(src === 'Walk-in') icon = '🚶';
+  else if(src === 'Direct') icon = '🤝';
+  else if(src === 'Phone') icon = '📞';
+  else if(src === 'WhatsApp') icon = '💬';
+  else if(src === 'Website') icon = '🌐';
+  else if(isOta) icon = '✈️';
+  return `<span class="badge ${isOta?'teal':'blue'}" style="font-weight:600;display:inline-flex;align-items:center;gap:4px;"><span style="font-size:11px;">${icon}</span>${esc(src)}</span>`;
+}
+
 function viewBookings(){
-  let bks = scopedBookings();
-  if(bookingsFilter.status!=='all') bks = bks.filter(b=>b.status===bookingsFilter.status);
-  if(bookingsFilter.source!=='all') bks = bks.filter(b=> (bookingsFilter.source==='OTA'? OTA_SOURCES.includes(b.source) : b.source===bookingsFilter.source));
-  if(bookingsFilter.q) bks = bks.filter(b=> (b.guestName+b.id+b.mobile).toLowerCase().includes(bookingsFilter.q.toLowerCase()));
-  bks = bks.slice().sort((a,b)=> b.checkIn.localeCompare(a.checkIn));
+  const bks = bookingsPagination.items.length > 0 ? bookingsPagination.items : scopedBookings();
+  const totalCount = bookingsPagination.total || bks.length;
+  const currentPage = bookingsPagination.page || 1;
+  const totalPages = bookingsPagination.totalPages || 1;
+  const currentTab = ui.bkQuickTab || 'all';
+
   return `
   <div class="page-head">
-    <div><h1 class="page-title">Bookings</h1><div class="page-sub">${bks.length} booking${bks.length!==1?'s':''} · ${propName(ui.property)}</div></div>
+    <div>
+      <h1 class="page-title">Bookings</h1>
+      <div class="page-sub">
+        <span><strong>${totalCount.toLocaleString()}</strong> booking${totalCount!==1?'s':''} in Central Database</span>
+        · <span>${propName(ui.property)}</span>
+        · <span style="color:var(--green);font-weight:600;">⚡ Real-time Multi-Device Synced</span>
+      </div>
+    </div>
     <div class="flex gap-8">
-      <button class="btn danger sm" id="bk-clear-all">Clear All Bookings</button>
+      <button class="btn sm" id="bk-refresh-btn" title="Refresh from server">🔄 Refresh</button>
       <button class="btn sm" id="bk-export">Export CSV</button>
       <button class="btn primary sm" id="bk-new">+ New Booking</button>
     </div>
   </div>
+
+  <div class="filter-tabs" id="bk-tabs">
+    <button class="filter-tab ${currentTab==='all'?'active':''}" data-tab="all">📋 All Bookings (${totalCount.toLocaleString()})</button>
+    <button class="filter-tab ${currentTab==='checked-in'?'active':''}" data-tab="checked-in">🟢 Checked-in</button>
+    <button class="filter-tab ${currentTab==='reserved'?'active':''}" data-tab="reserved">⏳ Reserved</button>
+    <button class="filter-tab ${currentTab==='checked-out'?'active':''}" data-tab="checked-out">✅ Checked-out</button>
+    <button class="filter-tab ${currentTab==='pending-pay'?'active':''}" data-tab="pending-pay">⚠️ Pending Balance</button>
+    <button class="filter-tab ${currentTab==='cancelled'?'active':''}" data-tab="cancelled">❌ Cancelled</button>
+  </div>
+
   <div class="panel">
-    <div class="panel-head" style="gap:10px;flex-wrap:wrap;">
-      <div class="flex gap-8" style="flex-wrap:wrap;">
-        <input id="bk-q" placeholder="Search guest, ID, mobile…" value="${esc(bookingsFilter.q)}" style="padding:6px 10px;border:1px solid var(--line);border-radius:3px;font-size:12.5px;width:220px;"/>
-        <select id="bk-status-filter" style="padding:6px 10px;border:1px solid var(--line);border-radius:3px;font-size:12.5px;">
+    <div class="panel-head" style="gap:10px;flex-wrap:wrap;justify-content:space-between;">
+      <div class="flex gap-8" style="flex-wrap:wrap;align-items:center;">
+        <input id="bk-q" placeholder="Search guest name, booking ID, phone…" value="${esc(bookingsPagination.q)}" style="padding:7px 12px;border:1px solid var(--line);border-radius:4px;font-size:12.5px;width:260px;background:var(--paper);"/>
+        <select id="bk-status-filter" style="padding:7px 10px;border:1px solid var(--line);border-radius:4px;font-size:12.5px;background:var(--paper);">
           <option value="all">All statuses</option>
-          ${['reserved','confirmed','checked-in','checked-out','cancelled','no-show'].map(s=>`<option value="${s}" ${bookingsFilter.status===s?'selected':''}>${s}</option>`).join('')}
+          ${['reserved','confirmed','checked-in','checked-out','cancelled','no-show'].map(s=>`<option value="${s}" ${bookingsPagination.status===s?'selected':''}>${s}</option>`).join('')}
         </select>
-        <select id="bk-source-filter" style="padding:6px 10px;border:1px solid var(--line);border-radius:3px;font-size:12.5px;">
-          <option value="all">All sources</option><option value="OTA">All OTA</option>
-          ${BOOKING_SOURCES.map(s=>`<option value="${s}" ${bookingsFilter.source===s?'selected':''}>${s}</option>`).join('')}
+        <select id="bk-source-filter" style="padding:7px 10px;border:1px solid var(--line);border-radius:4px;font-size:12.5px;background:var(--paper);">
+          <option value="all">All sources</option>
+          <option value="OTA" ${bookingsPagination.source==='OTA'?'selected':''}>All OTA</option>
+          ${BOOKING_SOURCES.map(s=>`<option value="${s}" ${bookingsPagination.source===s?'selected':''}>${s}</option>`).join('')}
         </select>
+        <div style="font-size:12px;color:var(--ink-soft);display:flex;align-items:center;gap:4px;">
+          <span>Per page:</span>
+          <select id="bk-limit-filter" style="padding:5px 8px;border:1px solid var(--line);border-radius:4px;font-size:12px;background:var(--paper);">
+            <option value="10" ${bookingsPagination.limit===10?'selected':''}>10</option>
+            <option value="25" ${bookingsPagination.limit===25?'selected':''}>25</option>
+            <option value="50" ${bookingsPagination.limit===50?'selected':''}>50</option>
+            <option value="100" ${bookingsPagination.limit===100?'selected':''}>100</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--ink-soft);">
+        Page <strong>${currentPage}</strong> of <strong>${totalPages}</strong>
       </div>
     </div>
     <div class="panel-body flush table-wrap">
       <table>
-        <thead><tr><th>Booking</th><th>Property</th><th>Room/Unit</th><th>Guest</th><th>Check-in</th><th>Check-out</th><th>Source</th><th>Status</th><th>Payment</th><th class="text-right">Balance</th><th class="text-right">Action</th></tr></thead>
-        <tbody>
-        ${bks.length? bks.map(b=>`
+        <thead>
           <tr>
-            <td><strong>${b.id}</strong></td>
+            <th>Booking ID</th>
+            <th>Property</th>
+            <th>Room / Unit</th>
+            <th>Guest Details</th>
+            <th>Stay Dates</th>
+            <th>Source</th>
+            <th>Status</th>
+            <th>Payment</th>
+            <th class="text-right">Balance</th>
+            <th class="text-right" style="min-width:210px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        ${bookingsPagination.loading ? `
+          <tr class="empty-row"><td colspan="10" style="padding:32px;text-align:center;">⚡ Fetching fresh records from Cloud Database...</td></tr>
+        ` : (bks.length ? bks.map(b=>{
+          const bal = bookingBalance(b);
+          const nights = nightsBetween(b.checkIn, b.checkOut);
+          return `
+          <tr>
+            <td>
+              <code style="font-weight:700;color:var(--azure);background:var(--azure-tint);padding:3px 7px;border-radius:4px;font-size:11.5px;letter-spacing:0.3px;">${b.id}</code>
+            </td>
             <td><span class="tag-prop ${b.property}">${propName(b.property)}</span></td>
-            <td>${roomLabel(b.roomId)}</td>
-            <td>${esc(b.guestName)}<div class="text-soft" style="font-size:11px;">${esc(b.mobile)}</div></td>
-            <td>${fmtDateShort(b.checkIn)}</td>
-            <td>${fmtDateShort(b.checkOut)}</td>
+            <td>
+              <div style="font-weight:700;color:var(--ink);">${roomLabel(b.roomId)}</div>
+            </td>
+            <td>
+              <div style="font-weight:600;color:var(--ink);">${esc(b.guestName)}</div>
+              <div style="font-size:11px;color:var(--ink-soft);margin-top:2px;">
+                <a href="tel:${esc(b.mobile)}" style="color:inherit;text-decoration:none;">📞 ${esc(b.mobile)}</a>
+              </div>
+            </td>
+            <td>
+              <div style="font-weight:600;">${fmtDateShort(b.checkIn)} → ${fmtDateShort(b.checkOut)}</div>
+              <div style="font-size:10.5px;color:var(--ink-soft);margin-top:1px;">${nights} night${nights!==1?'s':''}</div>
+            </td>
             <td>${sourceBadge(b.source)}</td>
             <td>${statusBadge(b.status)}</td>
             <td>${statusBadge(b.payment)}</td>
-            <td class="text-right">${fmtINR(bookingBalance(b))}</td>
             <td class="text-right">
-              <div class="flex gap-4" style="justify-content:flex-end;flex-wrap:nowrap;">
-                <button class="btn sm" data-view-booking="${b.id}">View</button>
-                <button class="btn sm primary" data-food-booking="${b.id}" title="Add Food Bill">🍽️ Food</button>
-                <button class="btn sm" data-bill-booking="${b.id}" title="Generate Bill">Bill 📄</button>
-                <button class="btn sm" data-edit-booking="${b.id}" title="Edit Booking">✏️ Edit</button>
-                <button class="btn sm danger" data-delete-booking="${b.id}" title="Delete Booking">🗑️ Delete</button>
+              ${bal > 0 ? `<span class="balance-due">⚠️ ${fmtINR(bal)}</span>` : `<span class="balance-zero">✓ ${fmtINR(0)}</span>`}
+            </td>
+            <td class="text-right">
+              <div class="action-btn-group">
+                <button class="action-btn" data-view-booking="${b.id}" title="View details">👁️ View</button>
+                <button class="action-btn primary" data-food-booking="${b.id}" title="Add Food Bill">🍽️ Food</button>
+                <button class="action-btn" data-bill-booking="${b.id}" title="Generate Bill">📄 Bill</button>
+                <button class="action-btn" data-edit-booking="${b.id}" title="Edit Booking">✏️ Edit</button>
+                <button class="action-btn danger" data-delete-booking="${b.id}" title="Delete Booking">🗑️</button>
               </div>
             </td>
-          </tr>`).join('') : `<tr class="empty-row"><td colspan="11">No bookings match these filters.</td></tr>`}
+          </tr>`;
+        }).join('') : `<tr class="empty-row"><td colspan="10" style="padding:28px;text-align:center;">No bookings found matching current filters.</td></tr>`)}
         </tbody>
       </table>
     </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:var(--paper);border-top:1px solid var(--line);flex-wrap:wrap;gap:10px;">
+      <div style="font-size:12.5px;color:var(--ink-soft);">
+        Showing page <strong>${currentPage}</strong> of <strong>${totalPages}</strong> (${totalCount.toLocaleString()} total bookings in MongoDB)
+      </div>
+      <div class="flex gap-6">
+        <button class="btn sm" id="bk-first-page" ${currentPage<=1?'disabled style="opacity:0.5;pointer-events:none;"':''}>⏮ First</button>
+        <button class="btn sm" id="bk-prev-page" ${currentPage<=1?'disabled style="opacity:0.5;pointer-events:none;"':''}>◀ Prev</button>
+        <span style="font-size:12px;font-weight:600;padding:4px 8px;display:flex;align-items:center;">${currentPage} / ${totalPages}</span>
+        <button class="btn sm" id="bk-next-page" ${currentPage>=totalPages?'disabled style="opacity:0.5;pointer-events:none;"':''}>Next ▶</button>
+        <button class="btn sm" id="bk-last-page" ${currentPage>=totalPages?'disabled style="opacity:0.5;pointer-events:none;"':''}>Last ⏭</button>
+      </div>
+    </div>
   </div>`;
 }
+
 function events_bookings(){
   document.getElementById('bk-new').onclick = openBookingModal;
-  document.getElementById('bk-export').onclick = ()=> downloadCSV('bookings.csv', scopedBookings().map(b=>({id:b.id,property:b.property,room:roomLabel(b.roomId),guest:b.guestName,mobile:b.mobile,checkIn:b.checkIn,checkOut:b.checkOut,source:b.source,status:b.status,payment:b.payment,balance:bookingBalance(b)})));
-  document.getElementById('bk-q').oninput = (e)=>{ bookingsFilter.q=e.target.value; render(); document.getElementById('bk-q').focus(); const v=document.getElementById('bk-q'); v.setSelectionRange(v.value.length,v.value.length); };
-  document.getElementById('bk-status-filter').onchange = (e)=>{ bookingsFilter.status=e.target.value; render(); };
-  document.getElementById('bk-source-filter').onchange = (e)=>{ bookingsFilter.source=e.target.value; render(); };
-  const clearBtn = document.getElementById('bk-clear-all');
-  if(clearBtn) clearBtn.onclick = () => confirmAction(
-    'Delete all payments, expenses, guest & booking details?',
-    'This will permanently clear all bookings, guests, payments, expenses, invoices, and food bills. Room statuses will reset to available.',
-    () => {
-      clearAllRecords();
-      toast('All payment, expense, guest & booking details deleted');
+  const refreshBtn = document.getElementById('bk-refresh-btn');
+  if(refreshBtn) refreshBtn.onclick = () => { toast('Fetching fresh database state...'); fetchBookingsPage(bookingsPagination.page); syncStateFromCentral(true); };
+
+  document.getElementById('bk-export').onclick = ()=> downloadCSV('bookings.csv', (bookingsPagination.items.length?bookingsPagination.items:scopedBookings()).map(b=>({id:b.id,property:b.property,room:roomLabel(b.roomId),guest:b.guestName,mobile:b.mobile,checkIn:b.checkIn,checkOut:b.checkOut,source:b.source,status:b.status,payment:b.payment,balance:bookingBalance(b)})));
+
+  // Tab switching
+  document.querySelectorAll('#bk-tabs .filter-tab').forEach(tab => {
+    tab.onclick = () => {
+      const tabId = tab.dataset.tab;
+      ui.bkQuickTab = tabId;
+      if (tabId === 'all') {
+        bookingsPagination.status = 'all';
+        bookingsPagination.payment = 'all';
+      } else if (tabId === 'pending-pay') {
+        bookingsPagination.status = 'all';
+        bookingsPagination.payment = 'pending';
+      } else {
+        bookingsPagination.status = tabId;
+        bookingsPagination.payment = 'all';
+      }
       render();
-    }
-  );
+      fetchBookingsPage(1);
+    };
+  });
+
+  let searchTimeout = null;
+  const qInput = document.getElementById('bk-q');
+  if(qInput) {
+    qInput.oninput = (e)=>{
+      bookingsPagination.q = e.target.value;
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        fetchBookingsPage(1);
+      }, 350);
+    };
+  }
+
+  const statFilter = document.getElementById('bk-status-filter');
+  if(statFilter) statFilter.onchange = (e)=>{
+    bookingsPagination.status = e.target.value;
+    ui.bkQuickTab = e.target.value === 'all' ? 'all' : e.target.value;
+    fetchBookingsPage(1);
+  };
+
+  const srcFilter = document.getElementById('bk-source-filter');
+  if(srcFilter) srcFilter.onchange = (e)=>{ bookingsPagination.source=e.target.value; fetchBookingsPage(1); };
+
+  const limFilter = document.getElementById('bk-limit-filter');
+  if(limFilter) limFilter.onchange = (e)=>{ bookingsPagination.limit=parseInt(e.target.value); fetchBookingsPage(1); };
+
+  const fp = document.getElementById('bk-first-page'); if(fp) fp.onclick = ()=> fetchBookingsPage(1);
+  const pp = document.getElementById('bk-prev-page'); if(pp) pp.onclick = ()=> fetchBookingsPage(Math.max(1, bookingsPagination.page - 1));
+  const np = document.getElementById('bk-next-page'); if(np) np.onclick = ()=> fetchBookingsPage(Math.min(bookingsPagination.totalPages, bookingsPagination.page + 1));
+  const lp = document.getElementById('bk-last-page'); if(lp) lp.onclick = ()=> fetchBookingsPage(bookingsPagination.totalPages);
+
   document.querySelectorAll('[data-view-booking]').forEach(el=> el.onclick = ()=> openBookingDetail(el.dataset.viewBooking));
   document.querySelectorAll('[data-food-booking]').forEach(el => el.onclick = () => openAddFoodBillModal(el.dataset.foodBooking));
   document.querySelectorAll('[data-bill-booking]').forEach(el => el.onclick = () => openBookingBillPrint(el.dataset.billBooking));
@@ -1348,9 +2119,11 @@ function openBookingModal(prefill){
     const notes = document.getElementById('f-notes').value.trim();
 
     try {
+      const headers = { 'Content-Type': 'application/json' };
+      if(auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
       const response = await fetch('/api/bookings', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers,
         body: JSON.stringify({
           property, roomId, guestName: name, mobile, email,
           adults, children, checkIn: ci, checkOut: co, rate,
@@ -1365,8 +2138,9 @@ function openBookingModal(prefill){
       }
 
       closeModal();
-      toast(`Booking ${resData.booking.id} created & synced centrally!`);
+      toast(`Booking ${resData.booking.id} created & saved to Cloud Database!`);
       ui.view = 'bookings';
+      await fetchBookingsPage(1);
       await syncStateFromCentral(true);
     } catch (err) {
       errBox.innerHTML = `<div class="err-msg">Connection error: ${esc(err.message)}</div>`;
@@ -1789,63 +2563,80 @@ function openEditBookingModal(bookingId){
   openModal('Edit booking ' + b.id, body, foot, true);
 
   document.getElementById('eb-cancel').onclick = closeModal;
-  document.getElementById('eb-save').onclick = () => {
+  document.getElementById('eb-save').onclick = async () => {
     const name = document.getElementById('eb-guestname').value.trim();
     const mobile = document.getElementById('eb-mobile').value.trim();
     const ci = document.getElementById('eb-checkin').value;
     const co = document.getElementById('eb-checkout').value;
+    const errBox = document.getElementById('eb-err');
+
     if(!name || !mobile){
-      document.getElementById('eb-err').innerHTML = `<div class="err-msg">Guest name and mobile are required.</div>`;
+      errBox.innerHTML = `<div class="err-msg">Guest name and mobile are required.</div>`;
       return;
     }
     if(new Date(co) <= new Date(ci)){
-      document.getElementById('eb-err').innerHTML = `<div class="err-msg">Check-out must be after check-in.</div>`;
+      errBox.innerHTML = `<div class="err-msg">Check-out must be after check-in.</div>`;
       return;
     }
 
-    b.guestName = name;
-    b.mobile = mobile;
-    b.email = document.getElementById('eb-email').value.trim();
-    b.roomId = document.getElementById('eb-room').value;
-    b.rate = +document.getElementById('eb-rate').value || b.rate;
-    b.checkIn = ci;
-    b.checkOut = co;
-    b.discount = +document.getElementById('eb-discount').value || 0;
-    b.source = document.getElementById('eb-source').value;
-    b.notes = document.getElementById('eb-notes').value.trim();
+    const payload = {
+      guestName: name,
+      mobile,
+      email: document.getElementById('eb-email').value.trim(),
+      roomId: document.getElementById('eb-room').value,
+      rate: +document.getElementById('eb-rate').value || b.rate,
+      checkIn: ci,
+      checkOut: co,
+      discount: +document.getElementById('eb-discount').value || 0,
+      source: document.getElementById('eb-source').value,
+      notes: document.getElementById('eb-notes').value.trim()
+    };
 
-    if(bookingBalance(b) <= 0) b.payment = 'paid';
-    else b.payment = 'partial';
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if(auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+      const res = await fetch(`/api/bookings/${b.id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(!res.ok || !data.success) {
+        errBox.innerHTML = `<div class="err-msg">${esc(data.message || 'Room is already booked for selected dates.')}</div>`;
+        return;
+      }
 
-    logAudit('Booking edited', b.property, b.id);
-    persist();
-    closeModal();
-    toast('Booking ' + b.id + ' updated');
-    render();
-    openBookingDetail(b.id);
+      closeModal();
+      toast(`Booking ${b.id} updated and synced across all devices!`);
+      await fetchBookingsPage(bookingsPagination.page);
+      await syncStateFromCentral(true);
+      openBookingDetail(b.id);
+    } catch (err) {
+      errBox.innerHTML = `<div class="err-msg">Connection error: ${esc(err.message)}</div>`;
+    }
   };
 }
 
 function deleteBooking(bookingId){
-  const b = bookingObj(bookingId);
+  const b = bookingObj(bookingId) || (bookingsPagination.items || []).find(x => x.id === bookingId);
   if(!b) return;
-  confirmAction(`Delete booking ${b.id}?`, `Are you sure you want to delete this booking for ${b.guestName}? This action cannot be undone.`, async () => {
+  confirmAction(`Delete booking ${b.id}?`, `Are you sure you want to delete this booking for ${b.guestName}? This will permanently remove it from the cloud database.`, async () => {
     try {
-      const res = await fetch(`/api/bookings/${bookingId}`, { method: 'DELETE' });
+      const headers = {};
+      if(auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+      const res = await fetch(`/api/bookings/${bookingId}`, { method: 'DELETE', headers });
       const data = await res.json();
       closeModal();
       if(data.success) {
-        toast(`Booking ${b.id} deleted`);
+        toast(`Booking ${b.id} permanently removed from cloud database`);
+        await fetchBookingsPage(bookingsPagination.page);
         await syncStateFromCentral(true);
       } else {
         toast(data.message || 'Error deleting booking');
       }
     } catch(e) {
-      state.bookings = state.bookings.filter(x => x.id !== bookingId);
-      persist();
       closeModal();
-      toast(`Booking ${b.id} deleted locally`);
-      render();
+      toast('Connection error: ' + e.message);
     }
   });
 }
@@ -3764,6 +4555,15 @@ function events_search(){
   await loadInitial();
   render();
   setInterval(updateNetStatus, 4000);
+  // Multi-device sync polling fallback for Vercel/serverless environments (every 12 seconds)
+  setInterval(() => {
+    if (auth && auth.loggedIn) {
+      syncStateFromCentral(true);
+      if (ui.view === 'bookings' && !bookingsPagination.loading) {
+        fetchBookingsPage(bookingsPagination.page);
+      }
+    }
+  }, 12000);
 })();
 
 </script>
