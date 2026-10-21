@@ -2,6 +2,9 @@ const mongoose = require('mongoose');
 const path = require('path');
 const fs = require('fs');
 
+// Disable buffering globally so queries fail immediately or fall back rather than hanging for 10000ms
+mongoose.set('bufferCommands', false);
+
 let mongoMemoryServer = null;
 let isConnected = false;
 let dbType = 'Disconnected';
@@ -28,7 +31,8 @@ async function connectDB() {
     try {
       console.log(`[MongoDB] Connecting to Cloud Database: ${envUri.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@')}`);
       await mongoose.connect(envUri, {
-        serverSelectionTimeoutMS: 8000
+        serverSelectionTimeoutMS: 2500,
+        bufferCommands: false
       });
       isConnected = true;
       dbType = envUri.includes('mongodb+srv') ? 'MongoDB Atlas (Cloud)' : 'MongoDB Remote Server';
@@ -38,6 +42,9 @@ async function connectDB() {
       return { isConnected, dbType, uri: activeUri };
     } catch (err) {
       console.warn(`[MongoDB] Failed to connect to specified MONGODB_URI: ${err.message}`);
+      try {
+        await mongoose.disconnect();
+      } catch (discErr) {}
     }
   }
 

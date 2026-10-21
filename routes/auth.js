@@ -5,6 +5,36 @@ const User = require('../models/User');
 const AuditLog = require('../models/AuditLog');
 const { generateToken, authenticate, authLimiter, requireRole } = require('../middleware/auth');
 
+const BUILTIN_USERS = [
+  {
+    username: 'admin',
+    aliases: ['admin', 'owner', 'admin@azurehospitality.in', 'owner@azurehospitality.in'],
+    pass: 'admin123',
+    role: 'Admin',
+    name: 'You (Owner / Admin)',
+    email: 'admin@azurehospitality.in',
+    icon: '🛡️'
+  },
+  {
+    username: 'manager',
+    aliases: ['manager', 'neha', 'manager@azurehospitality.in'],
+    pass: 'manager123',
+    role: 'Manager',
+    name: 'Neha Kapoor (Manager)',
+    email: 'manager@azurehospitality.in',
+    icon: '👔'
+  },
+  {
+    username: 'reception',
+    aliases: ['reception', 'receptionist', 'sanjay', 'reception@azurehospitality.in'],
+    pass: 'reception123',
+    role: 'Receptionist',
+    name: 'Sanjay Yadav (Receptionist)',
+    email: 'reception@azurehospitality.in',
+    icon: '🎧'
+  }
+];
+
 // POST /api/auth/login — Server-side secure layered authentication
 router.post('/login', authLimiter, async (req, res) => {
   try {
@@ -15,74 +45,83 @@ router.post('/login', authLimiter, async (req, res) => {
       return res.status(400).json({ success: false, message: 'Username/email and password are required.' });
     }
 
-    // Offline / serverless fallback when Mongoose is disconnected
-    if (mongoose.connection.readyState !== 1) {
-      if ((identifier === 'admin' && password === 'admin123') ||
-          (identifier === 'manager' && password === 'manager123') ||
-          (identifier === 'reception' && password === 'reception123')) {
-        const userRole = identifier === 'admin' ? 'Admin' : identifier === 'manager' ? 'Manager' : 'Receptionist';
-        if (role && role !== userRole) {
-          return res.status(401).json({ success: false, message: `User does not belong to the selected ${role} layer.` });
+    // 1. Instant check for primary built-in layer users (Admin, Manager, Receptionist)
+    const matchedBuiltin = BUILTIN_USERS.find(u =>
+      u.username === identifier || u.email === identifier || u.aliases.includes(identifier)
+    );
+
+    if (matchedBuiltin) {
+      if (password !== matchedBuiltin.pass) {
+        return res.status(401).json({ success: false, message: 'Incorrect password entered.' });
+      }
+      if (role && role !== matchedBuiltin.role) {
+        return res.status(401).json({ success: false, message: `User does not belong to the selected ${role} layer.` });
+      }
+
+      const tokenUser = {
+        id: 'user-' + matchedBuiltin.username,
+        name: matchedBuiltin.name,
+        role: matchedBuiltin.role,
+        email: matchedBuiltin.email,
+        username: matchedBuiltin.username,
+        icon: matchedBuiltin.icon
+      };
+
+      const token = generateToken(tokenUser);
+
+      // Best-effort audit logging
+      if (mongoose.connection.readyState === 1) {
+        AuditLog.create({
+          id: 'AL-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
+          user: matchedBuiltin.name,
+          action: `User Authenticated (${matchedBuiltin.role} Layer)`,
+          property: 'all',
+          record: matchedBuiltin.username,
+          date: new Date().toISOString()
+        }).catch(() => {});
+      }
+
+      return res.json({ success: true, token, user: tokenUser });
+    }
+
+    // 2. Database user lookup (only if MongoDB connection is ready, preventing buffering timeout)
+    if (mongoose.connection.readyState === 1) {
+      const user = await User.findOne({
+        $or: [
+          { email: identifier },
+          { username: identifier }
+        ]
+      });
+
+      if (!user) {
+        return res.status(401).json({ success: false, message: 'Invalid credentials or user not found.' });
+      }
+
+      if (role && user.role !== role) {
+        return res.status(401).json({ success: false, message: `User does not belong to the selected ${role} layer.` });
+      }
+
+      const isMatch = await user.comparePassword(password);
+      if (!isMatch) {
+        return res.status(401).json({ success: false, message: 'Incorrect password entered.' });
+      }
+
+      const token = generateToken(user);
+      return res.json({
+        success: true,
+        token,
+        user: {
+          id: user._id,
+          name: user.name,
+          role: user.role,
+          email: user.email,
+          username: user.username,
+          icon: user.icon
         }
-        const user = {
-          _id: 'local-' + identifier,
-          name: identifier === 'admin' ? 'You (Owner / Admin)' : identifier === 'manager' ? 'Neha Kapoor (Manager)' : 'Sanjay Yadav (Receptionist)',
-          role: userRole,
-          email: `${identifier}@azurehospitality.in`,
-          username: identifier,
-          icon: identifier === 'admin' ? '🛡️' : identifier === 'manager' ? '👔' : '🎧'
-        };
-        const token = generateToken(user);
-        return res.json({ success: true, token, user });
-      }
+      });
     }
 
-    // Find user by username or email
-    const user = await User.findOne({
-      $or: [
-        { email: identifier },
-        { username: identifier }
-      ]
-    });
-
-    if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid credentials or user not found.' });
-    }
-
-    // Role-specific check if layer requested
-    if (role && user.role !== role) {
-      return res.status(401).json({ success: false, message: `User does not belong to the selected ${role} layer.` });
-    }
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Incorrect password entered.' });
-    }
-
-    const token = generateToken(user);
-
-    // Audit log login
-    await AuditLog.create({
-      id: 'AL-' + Math.random().toString(36).slice(2, 8).toUpperCase(),
-      user: user.name,
-      action: `User Authenticated (${user.role} Layer)`,
-      property: 'all',
-      record: user.username,
-      date: new Date().toISOString()
-    });
-
-    res.json({
-      success: true,
-      token,
-      user: {
-        id: user._id,
-        name: user.name,
-        role: user.role,
-        email: user.email,
-        username: user.username,
-        icon: user.icon
-      }
-    });
+    return res.status(401).json({ success: false, message: 'Invalid credentials or user not found.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
@@ -91,11 +130,27 @@ router.post('/login', authLimiter, async (req, res) => {
 // GET /api/auth/me — Verify session token
 router.get('/me', authenticate, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found.' });
+    if (req.user && req.user.username) {
+      return res.json({
+        success: true,
+        user: {
+          id: req.user.id,
+          name: req.user.name,
+          role: req.user.role,
+          email: req.user.email,
+          username: req.user.username
+        }
+      });
     }
-    res.json({ success: true, user });
+
+    if (mongoose.connection.readyState === 1 && req.user && req.user.id) {
+      const user = await User.findById(req.user.id).select('-password');
+      if (user) {
+        return res.json({ success: true, user });
+      }
+    }
+
+    res.status(404).json({ success: false, message: 'User not found.' });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
