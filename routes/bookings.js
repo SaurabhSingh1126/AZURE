@@ -220,14 +220,17 @@ router.post('/', optionalAuth, async (req, res) => {
     discount, advance, source, notes, createdBy, customId
   } = req.body;
 
-  if (!property || !roomId || !guestName || !mobile || !checkIn || !checkOut) {
+  const cleanCheckIn = String(checkIn || '').trim().slice(0, 10);
+  const cleanCheckOut = String(checkOut || '').trim().slice(0, 10);
+
+  if (!property || !roomId || !guestName || !mobile || !cleanCheckIn || !cleanCheckOut) {
     return res.status(400).json({
       success: false,
       message: 'Missing required booking fields: property, roomId, guestName, mobile, checkIn, checkOut.'
     });
   }
 
-  if (new Date(checkOut) <= new Date(checkIn)) {
+  if (new Date(cleanCheckOut) <= new Date(cleanCheckIn)) {
     return res.status(400).json({
       success: false,
       message: 'Check-out date must be strictly after check-in date.'
@@ -243,7 +246,7 @@ router.post('/', optionalAuth, async (req, res) => {
     const advAmount = Number(advance || 0);
     const rateAmount = Number(rate || 0);
     const discAmount = Number(discount || 0);
-    const initialStatus = checkIn <= today ? 'confirmed' : 'reserved';
+    const initialStatus = cleanCheckIn <= today ? 'confirmed' : 'reserved';
     const initialPayment = advAmount > 0 ? (advAmount >= rateAmount ? 'paid' : 'partial') : 'unpaid';
 
     // 1. If MongoDB is connected:
@@ -254,8 +257,8 @@ router.post('/', optionalAuth, async (req, res) => {
         status: { $nin: ['cancelled', 'checked-out', 'no-show', 'CANCELLED', 'REJECTED', 'Checked-out', 'Checked-Out', 'Cancelled', 'No-show'] },
         $or: [
           {
-            checkIn: { $lt: checkOut },
-            checkOut: { $gt: checkIn }
+            checkIn: { $lt: cleanCheckOut },
+            checkOut: { $gt: cleanCheckIn }
           }
         ]
       }).lean();
@@ -276,7 +279,7 @@ router.post('/', optionalAuth, async (req, res) => {
         if (m.status === 'completed' || m.status === 'resolved') return false;
         const mStart = m.startDate || m.date || '2000-01-01';
         const mEnd = m.endDate || mStart;
-        return isDateOverlapping(mStart, mEnd, checkIn, checkOut);
+        return isDateOverlapping(mStart, mEnd, cleanCheckIn, cleanCheckOut);
       });
 
       if (maintenanceBlocks.length > 0) {
@@ -319,9 +322,9 @@ router.post('/', optionalAuth, async (req, res) => {
         email: (email || '').trim(),
         adults: Number(adults || 1),
         children: Number(children || 0),
-        checkIn,
+        checkIn: cleanCheckIn,
         checkInTime: '13:00',
-        checkOut,
+        checkOut: cleanCheckOut,
         checkOutTime: '11:00',
         rate: rateAmount,
         discount: discAmount,
@@ -350,7 +353,7 @@ router.post('/', optionalAuth, async (req, res) => {
       }
 
       // Update room status if checking in today
-      if (checkIn === today) {
+      if (cleanCheckIn === today) {
         await Room.findOneAndUpdate(
           { id: roomId },
           { status: 'reserved' }
@@ -377,7 +380,7 @@ router.post('/', optionalAuth, async (req, res) => {
 
       // Broadcast multi-device real-time event
       broadcast('booking_created', { booking: newBooking });
-      broadcast('availability_updated', { property, roomId, checkIn, checkOut });
+      broadcast('availability_updated', { property, roomId, checkIn: cleanCheckIn, checkOut: cleanCheckOut });
 
       return res.status(201).json({
         success: true,
@@ -392,7 +395,7 @@ router.post('/', optionalAuth, async (req, res) => {
       if (b.roomId !== roomId) return false;
       const st = (b.status || '').toLowerCase();
       if (['cancelled', 'checked-out', 'no-show', 'rejected'].includes(st)) return false;
-      return (b.checkIn < checkOut && b.checkOut > checkIn);
+      return (b.checkIn < cleanCheckOut && b.checkOut > cleanCheckIn);
     });
 
     if (activeConflicts.length > 0) {
@@ -414,9 +417,9 @@ router.post('/', optionalAuth, async (req, res) => {
       email: (email || '').trim(),
       adults: Number(adults || 1),
       children: Number(children || 0),
-      checkIn,
+      checkIn: cleanCheckIn,
       checkInTime: '13:00',
-      checkOut,
+      checkOut: cleanCheckOut,
       checkOutTime: '11:00',
       rate: rateAmount,
       discount: discAmount,
@@ -436,7 +439,7 @@ router.post('/', optionalAuth, async (req, res) => {
     });
 
     broadcast('booking_created', { booking: fallbackBooking });
-    broadcast('availability_updated', { property, roomId, checkIn, checkOut });
+    broadcast('availability_updated', { property, roomId, checkIn: cleanCheckIn, checkOut: cleanCheckOut });
 
     return res.status(201).json({
       success: true,
