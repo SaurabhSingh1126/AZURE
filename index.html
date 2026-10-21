@@ -589,6 +589,93 @@ function clearAllRecords(){
   persist();
 }
 
+/* =========================================================
+   CLIENT AUTHORITY GUARDS & DELETION REGISTRY
+   Guarantees that deleted rooms, units, and custom settings
+   never revert when serverless containers cold-start.
+========================================================= */
+function getDeletedRoomIds() {
+  try { return JSON.parse(localStorage.getItem('azure_deleted_rooms') || '[]'); } catch(e) { return []; }
+}
+function getDeletedUnitIds() {
+  try { return JSON.parse(localStorage.getItem('azure_deleted_units') || '[]'); } catch(e) { return []; }
+}
+function getDeletedBookingIds() {
+  try { return JSON.parse(localStorage.getItem('azure_deleted_bookings') || '[]'); } catch(e) { return []; }
+}
+function addDeletedRoomId(id) {
+  if (!id) return;
+  const list = getDeletedRoomIds();
+  if (!list.includes(id)) {
+    list.push(id);
+    localStorage.setItem('azure_deleted_rooms', JSON.stringify(list));
+  }
+}
+function removeDeletedRoomId(id) {
+  if (!id) return;
+  let list = getDeletedRoomIds();
+  list = list.filter(x => x !== id);
+  localStorage.setItem('azure_deleted_rooms', JSON.stringify(list));
+}
+function addDeletedUnitId(id) {
+  if (!id) return;
+  const list = getDeletedUnitIds();
+  if (!list.includes(id)) {
+    list.push(id);
+    localStorage.setItem('azure_deleted_units', JSON.stringify(list));
+  }
+}
+function removeDeletedUnitId(id) {
+  if (!id) return;
+  let list = getDeletedUnitIds();
+  list = list.filter(x => x !== id);
+  localStorage.setItem('azure_deleted_units', JSON.stringify(list));
+}
+function addDeletedBookingId(id) {
+  if (!id) return;
+  const list = getDeletedBookingIds();
+  if (!list.includes(id)) {
+    list.push(id);
+    localStorage.setItem('azure_deleted_bookings', JSON.stringify(list));
+  }
+}
+
+function applyClientGuards(targetState) {
+  if (!targetState) return;
+  const deletedRooms = getDeletedRoomIds();
+  const deletedUnits = getDeletedUnitIds();
+  const deletedBookings = getDeletedBookingIds();
+
+  // 1. Strictly purge any deleted rooms, units, or bookings (by both id and _id)
+  if (Array.isArray(targetState.rooms)) {
+    targetState.rooms = targetState.rooms.filter(r => !deletedRooms.includes(r.id) && !deletedRooms.includes(r._id));
+  }
+  if (Array.isArray(targetState.units)) {
+    targetState.units = targetState.units.filter(u => !deletedUnits.includes(u.id) && !deletedUnits.includes(u._id));
+  }
+  if (Array.isArray(targetState.bookings)) {
+    targetState.bookings = targetState.bookings.filter(b => !deletedBookings.includes(b.id) && !deletedBookings.includes(b._id));
+  }
+
+  // 2. Enforce custom business settings so stale serverless containers never revert user inputs
+  try {
+    const saved = localStorage.getItem('azure_settings_cache');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (parsed) {
+        if (parsed.settings) targetState.settings = { ...(targetState.settings || {}), ...parsed.settings };
+        if (parsed.properties) targetState.properties = { ...(targetState.properties || {}), ...parsed.properties };
+        if (Array.isArray(parsed.rooms)) {
+          targetState.rooms = parsed.rooms.filter(r => !deletedRooms.includes(r.id) && !deletedRooms.includes(r._id));
+        }
+        if (Array.isArray(parsed.units)) {
+          targetState.units = parsed.units.filter(u => !deletedUnits.includes(u.id) && !deletedUnits.includes(u._id));
+        }
+      }
+    }
+  } catch(e) {}
+}
+
 let state = null;
 let saveTimer = null;
 
@@ -606,30 +693,37 @@ function setUserPassword(role, newPass){
 
 function persist(){
   // Central Cloud Database is primary; persist notifies server of operational changes and saves local snapshot
+  // 1. Immediately and synchronously save to localStorage so page refresh never loses changes even within 1ms
+  try {
+    localStorage.setItem('azure_settings_cache', JSON.stringify({
+      settings: state.settings,
+      properties: state.properties,
+      rooms: state.rooms,
+      units: state.units,
+      updatedAt: Date.now()
+    }));
+    localStorage.setItem('azure_state_cache', JSON.stringify({
+      settings: state.settings,
+      properties: state.properties,
+      rooms: state.rooms,
+      units: state.units,
+      foodBills: state.foodBills,
+      payments: state.payments,
+      invoices: state.invoices,
+      expenses: state.expenses,
+      suppliers: state.suppliers,
+      staff: state.staff,
+      maintenance: state.maintenance,
+      housekeeping: state.housekeeping,
+      invoiceSeq: state.invoiceSeq
+    }));
+  } catch(e) {}
+
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
     try{
       state.lastSync = new Date().toISOString();
       renderTopbarStatus();
-
-      // 1. Keep a local snapshot in localStorage so refresh never flickers deleted items
-      try {
-        localStorage.setItem('azure_state_cache', JSON.stringify({
-          settings: state.settings,
-          properties: state.properties,
-          rooms: state.rooms,
-          units: state.units,
-          foodBills: state.foodBills,
-          payments: state.payments,
-          invoices: state.invoices,
-          expenses: state.expenses,
-          suppliers: state.suppliers,
-          staff: state.staff,
-          maintenance: state.maintenance,
-          housekeeping: state.housekeeping,
-          invoiceSeq: state.invoiceSeq
-        }));
-      } catch(e) {}
 
       // 2. Persist to server (both MongoDB and resilient storage)
       const headers = { 'Content-Type': 'application/json' };
@@ -702,9 +796,10 @@ async function fetchBookingsPage(page = 1) {
       isHttpConnected = true;
       const data = await res.json();
       if (data.success) {
-        bookingsPagination.items = data.bookings || [];
-        bookingsPagination.total = data.pagination.total;
-        bookingsPagination.totalPages = data.pagination.totalPages;
+        const deletedBookingIds = getDeletedBookingIds();
+        bookingsPagination.items = (data.bookings || []).filter(b => !deletedBookingIds.includes(b.id));
+        bookingsPagination.total = Math.max(0, data.pagination.total - deletedBookingIds.length);
+        bookingsPagination.totalPages = Math.max(1, Math.ceil(bookingsPagination.total / bookingsPagination.limit));
         bookingsPagination.page = data.pagination.page;
       }
     }
@@ -819,12 +914,29 @@ async function syncStateFromCentral(silent = true) {
       isHttpConnected = true;
       const result = await res.json();
       if (result && result.data) {
+        applyClientGuards(result.data);
         state = result.data;
         if (result.dbType) cloudDbType = result.dbType;
         if (result.data.activeDevicesOnline) activeDevicesCount = result.data.activeDevicesOnline;
         if (!silent) toast('Synced with Central Cloud Database');
         render();
         renderTopbarStatus();
+
+        // If running in offline fallback on Vercel, keep server container synchronized with client settings
+        const isOffline = !result.isMongoConnected || (result.dbStatus && !result.dbStatus.isConnected);
+        if (isOffline) {
+          fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              settings: state.settings,
+              properties: state.properties,
+              rooms: state.rooms,
+              units: state.units,
+              invoiceSeq: state.invoiceSeq
+            })
+          }).catch(() => {});
+        }
       }
     }
   } catch (e) {
@@ -910,6 +1022,17 @@ async function checkExistingAuth(){
 
 async function loadInitial(){
   await checkExistingAuth();
+
+  // 1. Immediately initialize with client guards so custom settings and deletions are active with zero latency
+  let cached = null;
+  try {
+    const raw = localStorage.getItem('azure_state_cache');
+    if (raw) cached = JSON.parse(raw);
+  } catch(e) {}
+  state = cached || buildSampleData();
+  applyClientGuards(state);
+
+  // 2. Fetch central state from server
   try{
     const headers = {};
     if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
@@ -918,14 +1041,31 @@ async function loadInitial(){
       isHttpConnected = true;
       const result = await res.json();
       if (result && result.data) {
+        applyClientGuards(result.data);
         state = result.data;
         if(result.dbType) cloudDbType = result.dbType;
         if(!state.userPasswords) state.userPasswords = { Admin: 'admin123', Manager: 'manager123', Receptionist: 'reception123' };
         if(!state.foodBills) state.foodBills = [];
         if(!state.settings) state.settings = buildSampleData().settings;
-        console.log('[Central DB] Loaded central state directly from MongoDB');
+        console.log('[Central DB] Loaded central state directly from server');
         initRealtime();
         if(auth.loggedIn) fetchBookingsPage(1);
+
+        // If running in offline fallback on Vercel, keep server container synchronized with client settings
+        const isOffline = !result.isMongoConnected || (result.dbStatus && !result.dbStatus.isConnected);
+        if (isOffline) {
+          fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              settings: state.settings,
+              properties: state.properties,
+              rooms: state.rooms,
+              units: state.units,
+              invoiceSeq: state.invoiceSeq
+            })
+          }).catch(() => {});
+        }
         return;
       }
     }
@@ -933,18 +1073,6 @@ async function loadInitial(){
     console.warn('[Central DB] Network warning:', e);
   }
 
-  // Fallback to local snapshot if offline
-  try {
-    const cachedState = localStorage.getItem('azure_state_cache');
-    if (cachedState) {
-      const parsed = JSON.parse(cachedState);
-      state = { ...buildSampleData(), ...parsed };
-      initRealtime();
-      return;
-    }
-  } catch (lsErr) {}
-
-  state = buildSampleData();
   initRealtime();
 }
 
@@ -2881,7 +3009,9 @@ function deleteBooking(bookingId){
       try { data = JSON.parse(resText); } catch(jsonErr) {}
       closeModal();
       if(res.ok && data.success) {
+        addDeletedBookingId(bookingId);
         state.bookings = state.bookings.filter(x => x.id !== bookingId);
+        bookingsPagination.items = bookingsPagination.items.filter(x => x.id !== bookingId);
         persist();
         toast(`Booking ${b.id} permanently removed from cloud database`);
         try {
@@ -4595,7 +4725,7 @@ function viewSettings(){
     <button class="btn sm primary" id="set-add-room-vista">+ Add Room</button>
   </div><div class="panel-body flush table-wrap">
     <table><thead><tr><th>Room number</th><th>Type</th><th class="text-right">Default Rate (₹) (Optional)</th><th class="text-right">Action</th></tr></thead>
-    <tbody>${state.rooms.map(r=>`<tr><td><input data-room-number="${r.id}" value="${esc(r.number)}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td><input data-room-type="${r.id}" value="${esc(r.type)}" style="width:140px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td class="text-right"><input data-room-rate="${r.id}" type="number" placeholder="Optional" value="${r.rate||''}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;text-align:right;"/></td><td class="text-right"><button class="btn sm danger" data-delete-room="${r.id}">🗑️ Delete Room</button></td></tr>`).join('')}</tbody></table>
+    <tbody>${state.rooms.map(r=>`<tr><td><input data-room-number="${r.id||r._id}" value="${esc(r.number)}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td><input data-room-type="${r.id||r._id}" value="${esc(r.type)}" style="width:140px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td class="text-right"><input data-room-rate="${r.id||r._id}" type="number" placeholder="Optional" value="${r.rate||''}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;text-align:right;"/></td><td class="text-right"><button class="btn sm danger" data-delete-room="${r.id||r._id}">🗑️ Delete Room</button></td></tr>`).join('')}</tbody></table>
   </div></div>
 
   <div class="panel"><div class="panel-head" style="display:flex;justify-content:space-between;align-items:center;">
@@ -4603,7 +4733,7 @@ function viewSettings(){
     <button class="btn sm primary" id="set-add-unit-suite">+ Add Unit</button>
   </div><div class="panel-body flush table-wrap">
     <table><thead><tr><th>Unit name / number</th><th>Type</th><th class="text-right">Default Rate (₹) (Optional)</th><th class="text-right">Action</th></tr></thead>
-    <tbody>${state.units.map(u=>`<tr><td><input data-unit-number="${u.id}" value="${esc(u.number)}" style="width:160px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td><input data-unit-type="${u.id}" value="${esc(u.type)}" style="width:160px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td class="text-right"><input data-unit-rate="${u.id}" type="number" placeholder="Optional" value="${u.rate||''}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;text-align:right;"/></td><td class="text-right"><button class="btn sm danger" data-delete-unit="${u.id}">🗑️ Delete Unit</button></td></tr>`).join('')}</tbody></table>
+    <tbody>${state.units.map(u=>`<tr><td><input data-unit-number="${u.id||u._id}" value="${esc(u.number)}" style="width:160px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td><input data-unit-type="${u.id||u._id}" value="${esc(u.type)}" style="width:160px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;"/></td><td class="text-right"><input data-unit-rate="${u.id||u._id}" type="number" placeholder="Optional" value="${u.rate||''}" style="width:110px;padding:5px 8px;border:1px solid var(--line);border-radius:3px;text-align:right;"/></td><td class="text-right"><button class="btn sm danger" data-delete-unit="${u.id||u._id}">🗑️ Delete Unit</button></td></tr>`).join('')}</tbody></table>
   </div></div>
 
   <button class="btn primary" id="settings-save">Save all settings</button>
@@ -4709,6 +4839,7 @@ function events_settings(){
   if(addVista) addVista.onclick = async ()=>{
     const nextNum = (100 + state.rooms.length + 1).toString();
     const newRoom = { id: uid('RM'), property: 'azurevista', number: nextNum, type: 'Standard', rate: 0, status: 'available' };
+    removeDeletedRoomId(newRoom.id);
     state.rooms.push(newRoom);
     persist();
     try {
@@ -4717,7 +4848,7 @@ function events_settings(){
       fetch('/api/settings', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ rooms: state.rooms, units: state.units })
+        body: JSON.stringify({ settings: state.settings, properties: state.properties, rooms: state.rooms, units: state.units, invoiceSeq: state.invoiceSeq })
       });
     } catch(e) {}
     toast(`Room ${nextNum} added to Azurevista`);
@@ -4728,6 +4859,7 @@ function events_settings(){
   if(addSuite) addSuite.onclick = async ()=>{
     const nextNum = 'Azure Suite ' + (state.units.length + 1);
     const newUnit = { id: uid('UN'), property: 'azuresuite', number: nextNum, type: '2BHK Apartment', rate: 0, status: 'available' };
+    removeDeletedUnitId(newUnit.id);
     state.units.push(newUnit);
     persist();
     try {
@@ -4736,7 +4868,7 @@ function events_settings(){
       fetch('/api/settings', {
         method: 'POST',
         headers,
-        body: JSON.stringify({ rooms: state.rooms, units: state.units })
+        body: JSON.stringify({ settings: state.settings, properties: state.properties, rooms: state.rooms, units: state.units, invoiceSeq: state.invoiceSeq })
       });
     } catch(e) {}
     toast(`${nextNum} added to Azure Suite`);
@@ -4747,9 +4879,14 @@ function events_settings(){
   document.querySelectorAll('[data-delete-room]').forEach(el => {
     el.onclick = () => {
       const roomId = el.dataset.deleteRoom;
-      const room = state.rooms.find(r => r.id === roomId);
+      const room = state.rooms.find(r => r.id === roomId || r._id === roomId);
       confirmAction('Delete Room?', `Are you sure you want to delete ${room ? 'Room ' + room.number : 'this room'} from inventory?`, async () => {
-        state.rooms = state.rooms.filter(r => r.id !== roomId);
+        addDeletedRoomId(roomId);
+        if (room) {
+          if (room.id) addDeletedRoomId(room.id);
+          if (room._id) addDeletedRoomId(room._id);
+        }
+        state.rooms = state.rooms.filter(r => r.id !== roomId && r._id !== roomId);
         persist();
         try {
           const headers = { 'Content-Type': 'application/json' };
@@ -4757,7 +4894,7 @@ function events_settings(){
           await fetch('/api/settings', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ rooms: state.rooms, units: state.units })
+            body: JSON.stringify({ settings: state.settings, properties: state.properties, rooms: state.rooms, units: state.units, invoiceSeq: state.invoiceSeq })
           });
         } catch(e) {}
         closeModal();
@@ -4770,9 +4907,14 @@ function events_settings(){
   document.querySelectorAll('[data-delete-unit]').forEach(el => {
     el.onclick = () => {
       const unitId = el.dataset.deleteUnit;
-      const unit = state.units.find(u => u.id === unitId);
+      const unit = state.units.find(u => u.id === unitId || u._id === unitId);
       confirmAction('Delete Unit?', `Are you sure you want to delete ${unit ? unit.number : 'this unit'} from inventory?`, async () => {
-        state.units = state.units.filter(u => u.id !== unitId);
+        addDeletedUnitId(unitId);
+        if (unit) {
+          if (unit.id) addDeletedUnitId(unit.id);
+          if (unit._id) addDeletedUnitId(unit._id);
+        }
+        state.units = state.units.filter(u => u.id !== unitId && u._id !== unitId);
         persist();
         try {
           const headers = { 'Content-Type': 'application/json' };
@@ -4780,7 +4922,7 @@ function events_settings(){
           await fetch('/api/settings', {
             method: 'POST',
             headers,
-            body: JSON.stringify({ rooms: state.rooms, units: state.units })
+            body: JSON.stringify({ settings: state.settings, properties: state.properties, rooms: state.rooms, units: state.units, invoiceSeq: state.invoiceSeq })
           });
         } catch(e) {}
         closeModal();
@@ -4803,12 +4945,12 @@ function events_settings(){
     document.querySelectorAll('[data-p-checkin]').forEach(el => { if (state.properties[el.dataset.pCheckin]) state.properties[el.dataset.pCheckin].checkInTime = el.value; });
     document.querySelectorAll('[data-p-checkout]').forEach(el => { if (state.properties[el.dataset.pCheckout]) state.properties[el.dataset.pCheckout].checkOutTime = el.value; });
     document.querySelectorAll('[data-p-gstin]').forEach(el => { if (state.properties[el.dataset.pGstin]) state.properties[el.dataset.pGstin].gstin = el.value; });
-    document.querySelectorAll('[data-room-number]').forEach(el => { const r = state.rooms.find(x => x.id === el.dataset.roomNumber); if (r) r.number = el.value; });
-    document.querySelectorAll('[data-room-type]').forEach(el => { const r = state.rooms.find(x => x.id === el.dataset.roomType); if (r) r.type = el.value; });
-    document.querySelectorAll('[data-room-rate]').forEach(el => { const r = state.rooms.find(x => x.id === el.dataset.roomRate); if (r) r.rate = +el.value || 0; });
-    document.querySelectorAll('[data-unit-number]').forEach(el => { const u = state.units.find(x => x.id === el.dataset.unitNumber); if (u) u.number = el.value; });
-    document.querySelectorAll('[data-unit-type]').forEach(el => { const u = state.units.find(x => x.id === el.dataset.unitType); if (u) u.type = el.value; });
-    document.querySelectorAll('[data-unit-rate]').forEach(el => { const u = state.units.find(x => x.id === el.dataset.unitRate); if (u) u.rate = +el.value || 0; });
+    document.querySelectorAll('[data-room-number]').forEach(el => { const r = state.rooms.find(x => x.id === el.dataset.roomNumber || x._id === el.dataset.roomNumber); if (r) r.number = el.value; });
+    document.querySelectorAll('[data-room-type]').forEach(el => { const r = state.rooms.find(x => x.id === el.dataset.roomType || x._id === el.dataset.roomType); if (r) r.type = el.value; });
+    document.querySelectorAll('[data-room-rate]').forEach(el => { const r = state.rooms.find(x => x.id === el.dataset.roomRate || x._id === el.dataset.roomRate); if (r) r.rate = +el.value || 0; });
+    document.querySelectorAll('[data-unit-number]').forEach(el => { const u = state.units.find(x => x.id === el.dataset.unitNumber || x._id === el.dataset.unitNumber); if (u) u.number = el.value; });
+    document.querySelectorAll('[data-unit-type]').forEach(el => { const u = state.units.find(x => x.id === el.dataset.unitType || x._id === el.dataset.unitType); if (u) u.type = el.value; });
+    document.querySelectorAll('[data-unit-rate]').forEach(el => { const u = state.units.find(x => x.id === el.dataset.unitRate || x._id === el.dataset.unitRate); if (u) u.rate = +el.value || 0; });
 
     logAudit('Settings changed', 'all', 'Business/tax/room/unit settings');
     persist();

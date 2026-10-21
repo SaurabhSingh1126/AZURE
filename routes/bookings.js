@@ -649,23 +649,17 @@ const clearAllHandler = async (req, res) => {
     // Reset occupied rooms to available
     await Room.updateMany({ status: 'occupied' }, { $set: { status: 'available' } });
 
-    // Clear local data_store.json file
-    const fs = require('fs');
-    const path = require('path');
-    const dataStorePath = path.join(__dirname, '..', 'data_store.json');
-    if (fs.existsSync(dataStorePath)) {
-      try {
-        const store = JSON.parse(fs.readFileSync(dataStorePath, 'utf8'));
-        store.bookings = [];
-        store.payments = [];
-        store.expenses = [];
-        store.invoices = [];
-        if (store.rooms) {
-          store.rooms = store.rooms.map(r => ({ ...r, status: r.status === 'occupied' ? 'available' : r.status }));
-        }
-        fs.writeFileSync(dataStorePath, JSON.stringify(store, null, 2), 'utf8');
-      } catch (e) {}
-    }
+    // Clear resilient store
+    const { updateStore } = require('../services/storeSync');
+    updateStore(store => {
+      store.bookings = [];
+      store.payments = [];
+      store.expenses = [];
+      store.invoices = [];
+      if (store.rooms) {
+        store.rooms = store.rooms.map(r => ({ ...r, status: r.status === 'occupied' ? 'available' : r.status }));
+      }
+    });
 
     await AuditLog.create({
       id: `AUD-${Date.now()}`,

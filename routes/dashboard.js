@@ -75,35 +75,29 @@ router.get('/stats', async (req, res) => {
 
     // Fallback if Mongoose is offline / serverless cold-start without Atlas
     if (mongoose.connection.readyState !== 1) {
-      const dataStorePath = path.join(__dirname, '..', 'data_store.json');
-      if (fs.existsSync(dataStorePath)) {
-        try {
-          const store = JSON.parse(fs.readFileSync(dataStorePath, 'utf8'));
-          let list = store.bookings || [];
-          if (property && property !== 'all') list = list.filter(b => b.property === property);
-          const rooms = store.rooms || [];
-          const guests = store.guests || [];
-          return res.json({
-            success: true,
-            kpis: {
-              checkInsToday: 0,
-              checkOutsToday: 0,
-              newBookingsToday: 0,
-              revenueToday: 0,
-              expensesToday: 0,
-              netToday: 0,
-              pendingBalance: list.reduce((s, b) => s + (b.balance || 0), 0),
-              totalBookings: list.length,
-              totalGuests: guests.length,
-              occupancyRate: 8
-            },
-            roomStatus: { total: rooms.length, available: 10, occupied: 1, dirty: 0, maintenance: 0 },
-            range: { ...range, revenue: 64000, expenses: 0, netProfit: 64000, totalBookings: list.length }
-          });
-        } catch (e) {
-          console.warn('[Dashboard Data Store Fallback Error]:', e.message);
-        }
-      }
+      const { getStore } = require('../services/storeSync');
+      const store = getStore();
+      let list = store.bookings || [];
+      if (property && property !== 'all') list = list.filter(b => b.property === property);
+      const rooms = store.rooms || [];
+      const guests = store.guests || [];
+      return res.json({
+        success: true,
+        kpis: {
+          checkInsToday: 0,
+          checkOutsToday: 0,
+          newBookingsToday: 0,
+          revenueToday: 0,
+          expensesToday: 0,
+          netToday: 0,
+          pendingBalance: list.reduce((s, b) => s + (b.balance || 0), 0),
+          totalBookings: list.length,
+          totalGuests: guests.length,
+          occupancyRate: 8
+        },
+        roomStatus: { total: rooms.length, available: 10, occupied: 1, dirty: 0, maintenance: 0 },
+        range: { ...range, revenue: 64000, expenses: 0, netProfit: 64000, totalBookings: list.length }
+      });
     }
 
     const bookingFilter = property === 'all' ? {} : { property };

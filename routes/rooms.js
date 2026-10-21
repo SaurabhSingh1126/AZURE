@@ -15,15 +15,11 @@ router.get('/', async (req, res) => {
     const { property } = req.query;
 
     if (mongoose.connection.readyState !== 1) {
-      const dataStorePath = path.join(__dirname, '..', 'data_store.json');
-      if (fs.existsSync(dataStorePath)) {
-        try {
-          const store = JSON.parse(fs.readFileSync(dataStorePath, 'utf8'));
-          let rooms = store.rooms || [];
-          if (property && property !== 'all') rooms = rooms.filter(r => r.property === property);
-          return res.json({ success: true, rooms });
-        } catch (e) {}
-      }
+      const { getStore } = require('../services/storeSync');
+      const store = getStore();
+      let rooms = store.rooms || [];
+      if (property && property !== 'all') rooms = rooms.filter(r => r.property === property);
+      return res.json({ success: true, rooms });
     }
 
     const filter = {};

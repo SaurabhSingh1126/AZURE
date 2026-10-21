@@ -154,6 +154,7 @@ app.get('/api/state', async (req, res) => {
       const store = getStore();
       return res.json({
         success: true,
+        isMongoConnected: false,
         dbStatus: { isConnected: false, dbType: dbInfo.dbType || 'Vercel Serverless (JSON Data Store Fallback)' },
         property: 'all',
         activeDevices: 1,
