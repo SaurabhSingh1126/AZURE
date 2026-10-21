@@ -13,8 +13,27 @@ let activeUri = '';
 const dotenv = require('dotenv');
 const envParsed = dotenv.config().parsed || {};
 
-async function connectDB() {
-  const envUri = (
+const TMP_URI_FILE = '/tmp/azure_mongo_uri.txt';
+
+function getCachedUri() {
+  try {
+    if (fs.existsSync(TMP_URI_FILE)) {
+      const u = fs.readFileSync(TMP_URI_FILE, 'utf8').trim();
+      if (u && !u.includes('<db_password>')) return u;
+    }
+  } catch(e) {}
+  return '';
+}
+
+function setCachedUri(uri) {
+  try {
+    fs.writeFileSync(TMP_URI_FILE, uri, 'utf8');
+  } catch(e) {}
+}
+
+async function connectDB(customUri) {
+  let envUri = (
+    customUri ||
     process.env.MONGODB_URI ||
     envParsed.MONGODB_URI ||
     envParsed['mongodb.uri'] ||
@@ -26,17 +45,26 @@ async function connectDB() {
     ''
   ).trim();
 
-  // 1. If an explicit MONGODB_URI is provided, attempt connection
-  if (envUri && !envUri.includes('127.0.0.1:27017') && !envUri.includes('localhost:27017')) {
+  // If URI has <db_password>, check if we have a valid cached URI from previous login/connect
+  if (envUri.includes('<db_password>')) {
+    const cached = getCachedUri();
+    if (cached) {
+      envUri = cached;
+    }
+  }
+
+  // 1. If an explicit MONGODB_URI is provided and contains valid credentials (not placeholder), attempt connection
+  if (envUri && !envUri.includes('<db_password>') && !envUri.includes('127.0.0.1:27017') && !envUri.includes('localhost:27017')) {
     try {
       console.log(`[MongoDB] Connecting to Cloud Database: ${envUri.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@')}`);
       await mongoose.connect(envUri, {
-        serverSelectionTimeoutMS: 2500,
+        serverSelectionTimeoutMS: 3000,
         bufferCommands: false
       });
       isConnected = true;
       dbType = envUri.includes('mongodb+srv') ? 'MongoDB Atlas (Cloud)' : 'MongoDB Remote Server';
       activeUri = envUri;
+      setCachedUri(envUri);
       console.log(`[MongoDB] Successfully connected to ${dbType}!`);
       await seedDefaultData();
       return { isConnected, dbType, uri: activeUri };
@@ -235,6 +263,7 @@ async function switchConnection(newUri) {
     isConnected = true;
     dbType = newUri.includes('mongodb+srv') ? 'MongoDB Atlas (Cloud)' : 'MongoDB Remote Server';
     activeUri = newUri;
+    setCachedUri(newUri);
     console.log(`[MongoDB] Switched active connection to: ${dbType}`);
     await seedDefaultData();
     return { isConnected, dbType, uri: activeUri };
@@ -259,5 +288,7 @@ module.exports = {
   stopDB,
   testConnection,
   switchConnection,
+  getCachedUri,
+  setCachedUri,
   getStatus: () => ({ isConnected, dbType, activeUri })
 };

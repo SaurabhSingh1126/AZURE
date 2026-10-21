@@ -39,6 +39,27 @@ router.post('/', optionalAuth, async (req, res) => {
 // GET /api/migrate/status — Check collection counts in MongoDB
 router.get('/status', async (req, res) => {
   try {
+    const mongoose = require('mongoose');
+    if (mongoose.connection.readyState !== 1) {
+      const { getStore } = require('../services/storeSync');
+      const store = getStore();
+      return res.json({
+        success: true,
+        database: 'JSON Data Store Fallback',
+        collectionCounts: {
+          bookings: (store.bookings || []).length,
+          guests: (store.guests || []).length,
+          rooms: ((store.rooms || []).length + (store.units || []).length),
+          payments: (store.payments || []).length,
+          invoices: (store.invoices || []).length,
+          expenses: (store.expenses || []).length,
+          inventory: (store.inventory || []).length,
+          auditLogs: (store.auditLog || []).length
+        },
+        availableBackups: []
+      });
+    }
+
     const [
       bookingsCount,
       guestsCount,
@@ -140,42 +161,57 @@ router.post('/connect-cloud', async (req, res) => {
     const dotenv = require('dotenv');
     const envParsed = dotenv.config().parsed || {};
 
+    const DEFAULT_URI_TEMPLATE = 'mongodb+srv://saurabhsinghvishen26_db_user:<db_password>@azure.6fmtnyz.mongodb.net/azure_hospitality?retryWrites=true&w=majority';
+
     let targetUri = (uri || process.env.MONGODB_URI || envParsed.MONGODB_URI || envParsed['mongodb.uri'] || '').trim();
+
+    // If input was given in password field and looks like a full mongodb URI:
+    if (password && (password.startsWith('mongodb://') || password.startsWith('mongodb+srv://'))) {
+      targetUri = password.trim();
+      password = '';
+    }
+
+    if (!targetUri) {
+      targetUri = DEFAULT_URI_TEMPLATE;
+    }
 
     if (password && targetUri.includes('<db_password>')) {
       targetUri = targetUri.replace('<db_password>', encodeURIComponent(password));
     }
 
-    if (!targetUri) {
-      return res.status(400).json({ success: false, message: 'No MongoDB URI provided.' });
-    }
-
-    if (targetUri.includes('<db_password>')) {
+    if (!targetUri || targetUri.includes('<db_password>')) {
       return res.status(400).json({
         success: false,
-        message: 'The URI still contains "<db_password>". Please provide your database user password.'
+        message: 'Please provide your MongoDB Atlas password to connect.'
       });
     }
 
     const { switchConnection } = require('../services/db');
     const result = await switchConnection(targetUri);
 
-    // Save working URI to .env so it persists across server restarts
-    const envPath = path.join(__dirname, '..', '.env');
-    if (fs.existsSync(envPath)) {
-      let envContent = fs.readFileSync(envPath, 'utf8');
-      if (envContent.includes('MONGODB_URI=')) {
-        envContent = envContent.replace(/MONGODB_URI=.*(\r?\n|$)/, `MONGODB_URI=${targetUri}\n`);
-      } else {
-        envContent = `MONGODB_URI=${targetUri}\n` + envContent;
+    // Save working URI to /tmp/azure_mongo_uri.txt (always writable on Vercel)
+    try {
+      fs.writeFileSync('/tmp/azure_mongo_uri.txt', targetUri, 'utf8');
+    } catch (e) {}
+
+    // Also attempt saving to .env for local persistence
+    try {
+      const envPath = path.join(__dirname, '..', '.env');
+      if (fs.existsSync(envPath)) {
+        let envContent = fs.readFileSync(envPath, 'utf8');
+        if (envContent.includes('MONGODB_URI=')) {
+          envContent = envContent.replace(/MONGODB_URI=.*(\r?\n|$)/, `MONGODB_URI=${targetUri}\n`);
+        } else {
+          envContent = `MONGODB_URI=${targetUri}\n` + envContent;
+        }
+        if (envContent.includes('mongodb.uri=')) {
+          envContent = envContent.replace(/mongodb\.uri=.*(\r?\n|$)/, `mongodb.uri=${targetUri}\n`);
+        } else {
+          envContent = `mongodb.uri=${targetUri}\n` + envContent;
+        }
+        fs.writeFileSync(envPath, envContent, 'utf8');
       }
-      if (envContent.includes('mongodb.uri=')) {
-        envContent = envContent.replace(/mongodb\.uri=.*(\r?\n|$)/, `mongodb.uri=${targetUri}\n`);
-      } else {
-        envContent = `mongodb.uri=${targetUri}\n` + envContent;
-      }
-      fs.writeFileSync(envPath, envContent, 'utf8');
-    }
+    } catch (e) {}
 
     // If destination DB has 0 bookings, auto-populate from backup
     const bookingCount = await Booking.countDocuments();
@@ -202,6 +238,7 @@ router.post('/connect-cloud', async (req, res) => {
       success: true,
       message: `Successfully connected to ${result.dbType}!`,
       dbType: result.dbType,
+      uri: targetUri,
       migrated,
       counts: newCounts
     });

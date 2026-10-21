@@ -331,8 +331,25 @@ tbody tr:hover{background:var(--azure-tint);}
 <div id="modal-backdrop"><div id="modal-inner"></div></div>
 <script>
 /* =========================================================
-   AZURE HOSPITALITY — helpers, storage, sample data
+   AZURE HOSPITALITY — Global Fetch Interceptor & Storage
+   Automatically passes connected MongoDB Atlas URI to Vercel Lambdas
 ========================================================= */
+const _nativeFetch = window.fetch;
+window.fetch = function(url, options) {
+  options = options || {};
+  const uri = localStorage.getItem('azure_mongo_uri');
+  if (uri && !uri.includes('<db_password>')) {
+    if (!options.headers) {
+      options.headers = { 'x-mongo-uri': uri };
+    } else if (typeof options.headers.set === 'function') {
+      if (!options.headers.has('x-mongo-uri')) options.headers.set('x-mongo-uri', uri);
+    } else {
+      if (!options.headers['x-mongo-uri']) options.headers['x-mongo-uri'] = uri;
+    }
+  }
+  return _nativeFetch.call(this, url, options);
+};
+
 const STORE_KEY = 'azh-data-v2';
 function todayStr(){
   const now = new Date();
@@ -588,14 +605,56 @@ function setUserPassword(role, newPass){
 }
 
 function persist(){
-  // Central Cloud Database is primary; persist notifies server of operational changes
+  // Central Cloud Database is primary; persist notifies server of operational changes and saves local snapshot
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async ()=>{
     try{
       state.lastSync = new Date().toISOString();
       renderTopbarStatus();
+
+      // 1. Keep a local snapshot in localStorage so refresh never flickers deleted items
+      try {
+        localStorage.setItem('azure_state_cache', JSON.stringify({
+          settings: state.settings,
+          properties: state.properties,
+          rooms: state.rooms,
+          units: state.units,
+          foodBills: state.foodBills,
+          payments: state.payments,
+          invoices: state.invoices,
+          expenses: state.expenses,
+          suppliers: state.suppliers,
+          staff: state.staff,
+          maintenance: state.maintenance,
+          housekeeping: state.housekeeping,
+          invoiceSeq: state.invoiceSeq
+        }));
+      } catch(e) {}
+
+      // 2. Persist to server (both MongoDB and resilient storage)
+      const headers = { 'Content-Type': 'application/json' };
+      if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
+      fetch('/api/state', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          settings: state.settings,
+          properties: state.properties,
+          rooms: state.rooms,
+          units: state.units,
+          foodBills: state.foodBills,
+          payments: state.payments,
+          invoices: state.invoices,
+          expenses: state.expenses,
+          suppliers: state.suppliers,
+          staff: state.staff,
+          maintenance: state.maintenance,
+          housekeeping: state.housekeeping,
+          invoiceSeq: state.invoiceSeq
+        })
+      }).catch(e => console.warn('[Persist sync background warning]:', e));
     }catch(e){ console.error('Persist failed', e); }
-  }, 100);
+  }, 200);
 }
 
 let socketClient = null;
@@ -640,6 +699,7 @@ async function fetchBookingsPage(page = 1) {
     if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
     const res = await fetch(`/api/bookings?${params.toString()}`, { headers });
     if (res.ok) {
+      isHttpConnected = true;
       const data = await res.json();
       if (data.success) {
         bookingsPagination.items = data.bookings || [];
@@ -756,6 +816,7 @@ async function syncStateFromCentral(silent = true) {
     if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
     const res = await fetch('/api/state', { headers });
     if (res.ok) {
+      isHttpConnected = true;
       const result = await res.json();
       if (result && result.data) {
         state = result.data;
@@ -854,6 +915,7 @@ async function loadInitial(){
     if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
     const res = await fetch('/api/state', { headers });
     if (res.ok) {
+      isHttpConnected = true;
       const result = await res.json();
       if (result && result.data) {
         state = result.data;
@@ -870,6 +932,17 @@ async function loadInitial(){
   }catch(e){
     console.warn('[Central DB] Network warning:', e);
   }
+
+  // Fallback to local snapshot if offline
+  try {
+    const cachedState = localStorage.getItem('azure_state_cache');
+    if (cachedState) {
+      const parsed = JSON.parse(cachedState);
+      state = { ...buildSampleData(), ...parsed };
+      initRealtime();
+      return;
+    }
+  } catch (lsErr) {}
 
   state = buildSampleData();
   initRealtime();
@@ -1212,16 +1285,26 @@ async function openCloudDatabaseModal(){
       fb.style.color = 'var(--ink-soft)';
       fb.innerText = 'Connecting to MongoDB Atlas and verifying replica set...';
       try {
+        const isFullUri = pwd.startsWith('mongodb://') || pwd.startsWith('mongodb+srv://');
+        const defaultUri = `mongodb+srv://saurabhsinghvishen26_db_user:${encodeURIComponent(pwd)}@azure.6fmtnyz.mongodb.net/azure_hospitality?retryWrites=true&w=majority`;
         const res = await fetch('/api/migrate/connect-cloud', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password: pwd })
+          body: JSON.stringify({
+            password: isFullUri ? '' : pwd,
+            uri: isFullUri ? pwd : defaultUri
+          })
         });
         const d = await res.json();
         if(d.success) {
           fb.style.color = 'var(--green)';
           fb.innerHTML = `✅ Connected to ${esc(d.dbType)}! Bookings: ${d.counts.bookings}`;
           cloudDbType = d.dbType;
+          isHttpConnected = true;
+          if (d.uri) {
+            localStorage.setItem('azure_mongo_uri', d.uri);
+            document.cookie = "azure_mongo_uri=" + encodeURIComponent(d.uri) + "; path=/; max-age=31536000; SameSite=Lax";
+          }
           renderTopbarStatus();
           toast(`Successfully connected to ${d.dbType}!`);
           await syncStateFromCentral(false);
@@ -2799,6 +2882,7 @@ function deleteBooking(bookingId){
       closeModal();
       if(res.ok && data.success) {
         state.bookings = state.bookings.filter(x => x.id !== bookingId);
+        persist();
         toast(`Booking ${b.id} permanently removed from cloud database`);
         try {
           render();
@@ -4664,13 +4748,13 @@ function events_settings(){
     el.onclick = () => {
       const roomId = el.dataset.deleteRoom;
       const room = state.rooms.find(r => r.id === roomId);
-      confirmAction('Delete Room?', `Are you sure you want to delete ${room ? 'Room ' + room.number : 'this room'} from inventory?`, () => {
+      confirmAction('Delete Room?', `Are you sure you want to delete ${room ? 'Room ' + room.number : 'this room'} from inventory?`, async () => {
         state.rooms = state.rooms.filter(r => r.id !== roomId);
         persist();
         try {
           const headers = { 'Content-Type': 'application/json' };
           if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
-          fetch('/api/settings', {
+          await fetch('/api/settings', {
             method: 'POST',
             headers,
             body: JSON.stringify({ rooms: state.rooms, units: state.units })
@@ -4687,13 +4771,13 @@ function events_settings(){
     el.onclick = () => {
       const unitId = el.dataset.deleteUnit;
       const unit = state.units.find(u => u.id === unitId);
-      confirmAction('Delete Unit?', `Are you sure you want to delete ${unit ? unit.number : 'this unit'} from inventory?`, () => {
+      confirmAction('Delete Unit?', `Are you sure you want to delete ${unit ? unit.number : 'this unit'} from inventory?`, async () => {
         state.units = state.units.filter(u => u.id !== unitId);
         persist();
         try {
           const headers = { 'Content-Type': 'application/json' };
           if (auth && auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
-          fetch('/api/settings', {
+          await fetch('/api/settings', {
             method: 'POST',
             headers,
             body: JSON.stringify({ rooms: state.rooms, units: state.units })

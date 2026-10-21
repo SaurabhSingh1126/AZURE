@@ -92,11 +92,30 @@ function getBaseUrl(req) {
 
 const mongoose = require('mongoose');
 
-// Serverless DB connection check for Vercel
+// Serverless DB connection check for Vercel & Client URI header
 let isConnecting = false;
 let connectPromise = null;
 app.use(async (req, res, next) => {
-  if (mongoose.connection.readyState === 0) {
+  const { getCachedUri, switchConnection } = require('./services/db');
+  let clientUri = req.headers['x-mongo-uri'] || '';
+  if (!clientUri && req.headers.cookie) {
+    const match = req.headers.cookie.match(/azure_mongo_uri=([^;]+)/);
+    if (match) clientUri = decodeURIComponent(match[1]);
+  }
+  if (!clientUri) {
+    clientUri = getCachedUri();
+  }
+
+  if (clientUri && !clientUri.includes('<db_password>')) {
+    const dbInfo = getStatus();
+    if (!dbInfo.isConnected || dbInfo.activeUri !== clientUri) {
+      try {
+        await switchConnection(clientUri);
+      } catch (switchErr) {
+        console.warn('[Auto-Connect to client Mongo URI warning]:', switchErr.message);
+      }
+    }
+  } else if (mongoose.connection.readyState === 0) {
     if (!isConnecting) {
       isConnecting = true;
       connectPromise = connectDB().finally(() => {
@@ -129,24 +148,18 @@ app.get('/api/state', async (req, res) => {
     const baseUrl = getBaseUrl(req);
     const dbInfo = getStatus();
 
-    // In serverless / offline fallback, read directly from data_store.json
+    // In serverless / offline fallback, read directly from getStore()
     if (mongoose.connection.readyState !== 1) {
-      const dataStorePath = path.join(__dirname, 'data_store.json');
-      if (fs.existsSync(dataStorePath)) {
-        try {
-          const store = JSON.parse(fs.readFileSync(dataStorePath, 'utf8'));
-          return res.json({
-            success: true,
-            dbStatus: { isConnected: false, dbType: dbInfo.dbType || 'Vercel Serverless (JSON Data Store Fallback)' },
-            property: 'all',
-            activeDevices: 1,
-            data: store,
-            ...store
-          });
-        } catch (e) {
-          console.warn('[Data Store Fallback Error]:', e.message);
-        }
-      }
+      const { getStore } = require('./services/storeSync');
+      const store = getStore();
+      return res.json({
+        success: true,
+        dbStatus: { isConnected: false, dbType: dbInfo.dbType || 'Vercel Serverless (JSON Data Store Fallback)' },
+        property: 'all',
+        activeDevices: 1,
+        data: store,
+        ...store
+      });
     }
 
     const [
@@ -237,7 +250,7 @@ app.get('/api/state', async (req, res) => {
 // POST /api/state — Bulk state synchronization endpoint for settings, properties, and configuration
 app.post('/api/state', async (req, res) => {
   try {
-    const { settings, properties, rooms, units, invoiceSeq, suppliers, staff, maintenance, housekeeping, foodBills } = req.body;
+    const { settings, properties, rooms, units, invoiceSeq, suppliers, staff, maintenance, housekeeping, foodBills, payments, invoices, expenses, guests } = req.body;
     const { updateStore } = require('./services/storeSync');
 
     updateStore(store => {
@@ -251,6 +264,10 @@ app.post('/api/state', async (req, res) => {
       if (Array.isArray(maintenance)) store.maintenance = maintenance;
       if (Array.isArray(housekeeping)) store.housekeeping = housekeeping;
       if (Array.isArray(foodBills)) store.foodBills = foodBills;
+      if (Array.isArray(payments)) store.payments = payments;
+      if (Array.isArray(invoices)) store.invoices = invoices;
+      if (Array.isArray(expenses)) store.expenses = expenses;
+      if (Array.isArray(guests)) store.guests = guests;
     });
 
     if (mongoose.connection.readyState === 1) {
@@ -269,6 +286,53 @@ app.post('/api/state', async (req, res) => {
         { $set: updateFields },
         { upsert: true, new: true }
       );
+
+      // Sync rooms & units in MongoDB Room collection if provided
+      if (Array.isArray(rooms)) {
+        for (const r of rooms) {
+          if (r.id) {
+            await Room.findOneAndUpdate(
+              { id: r.id },
+              { $set: { number: r.number, type: r.type, rate: Number(r.rate || 0), isUnit: false, property: r.property || 'azurevista' } },
+              { upsert: true }
+            );
+          }
+        }
+        const roomIds = rooms.map(r => r.id).filter(Boolean);
+        if (roomIds.length > 0) {
+          await Room.deleteMany({ isUnit: false, id: { $nin: roomIds } });
+        }
+      }
+
+      if (Array.isArray(units)) {
+        for (const u of units) {
+          if (u.id) {
+            await Room.findOneAndUpdate(
+              { id: u.id },
+              { $set: { number: u.number, type: u.type, rate: Number(u.rate || 0), isUnit: true, property: u.property || 'azuresuite' } },
+              { upsert: true }
+            );
+          }
+        }
+        const unitIds = units.map(u => u.id).filter(Boolean);
+        if (unitIds.length > 0) {
+          await Room.deleteMany({ isUnit: true, id: { $nin: unitIds } });
+        }
+      }
+
+      if (Array.isArray(invoices)) {
+        const invIds = invoices.map(i => i.id).filter(Boolean);
+        if (invIds.length > 0) {
+          await Invoice.deleteMany({ id: { $nin: invIds } });
+        }
+      }
+
+      if (Array.isArray(payments)) {
+        const payIds = payments.map(p => p.id).filter(Boolean);
+        if (payIds.length > 0) {
+          await Payment.deleteMany({ id: { $nin: payIds } });
+        }
+      }
     }
 
     res.json({ success: true, message: 'State synchronized successfully to database and server storage.' });

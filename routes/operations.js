@@ -6,6 +6,7 @@ const Inventory = require('../models/Inventory');
 const Invoice = require('../models/Invoice');
 const Guest = require('../models/Guest');
 const Booking = require('../models/Booking');
+const Room = require('../models/Room');
 const AuditLog = require('../models/AuditLog');
 const Setting = require('../models/Setting');
 const { broadcast } = require('../services/realtime');

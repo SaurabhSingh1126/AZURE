@@ -21,110 +21,175 @@
   },
   "rooms": [
     {
+      "_id": "6ad7d2f0e5f105a34b9dafa8",
       "id": "RM-101",
       "property": "azurevista",
       "number": "101",
       "type": "Standard",
       "rate": 3000,
-      "status": "available"
+      "status": "available",
+      "isUnit": false,
+      "__v": 0,
+      "createdAt": "2026-10-20T20:45:36.806Z",
+      "updatedAt": "2026-10-21T08:39:40.819Z"
     },
     {
+      "_id": "6ad7d2f0e5f105a34b9dafa9",
       "id": "RM-102",
       "property": "azurevista",
       "number": "102",
       "type": "Standard",
       "rate": 1786,
-      "status": "available"
+      "status": "available",
+      "isUnit": false,
+      "__v": 0,
+      "createdAt": "2026-10-20T20:45:36.806Z",
+      "updatedAt": "2026-10-20T20:45:36.806Z"
     },
     {
+      "_id": "6ad7d2f0e5f105a34b9dafaa",
       "id": "RM-103",
       "property": "azurevista",
       "number": "103",
       "type": "Standard",
       "rate": 3125,
-      "status": "available"
+      "status": "available",
+      "isUnit": false,
+      "__v": 0,
+      "createdAt": "2026-10-20T20:45:36.806Z",
+      "updatedAt": "2026-10-20T20:45:36.806Z"
     },
     {
+      "_id": "6ad7d2f0e5f105a34b9dafab",
       "id": "RM-104",
       "property": "azurevista",
       "number": "104",
       "type": "Standard",
       "rate": 1786,
-      "status": "available"
+      "status": "available",
+      "isUnit": false,
+      "__v": 0,
+      "createdAt": "2026-10-20T20:45:36.806Z",
+      "updatedAt": "2026-10-20T20:45:36.806Z"
     },
     {
+      "_id": "6ad7d2f0e5f105a34b9dafac",
       "id": "RM-105",
       "property": "azurevista",
       "number": "105",
       "type": "Deluxe",
       "rate": 3200,
-      "status": "cleaning"
+      "status": "available",
+      "isUnit": false,
+      "__v": 0,
+      "createdAt": "2026-10-20T20:45:36.806Z",
+      "updatedAt": "2026-10-20T20:45:36.806Z"
     },
     {
+      "_id": "6ad7d2f0e5f105a34b9dafad",
       "id": "RM-106",
       "property": "azurevista",
       "number": "106",
       "type": "Deluxe",
       "rate": 3200,
-      "status": "available"
+      "status": "available",
+      "isUnit": false,
+      "__v": 0,
+      "createdAt": "2026-10-20T20:45:36.806Z",
+      "updatedAt": "2026-10-20T20:45:36.806Z"
     },
     {
+      "_id": "6ad7d2f0e5f105a34b9dafae",
       "id": "RM-107",
       "property": "azurevista",
       "number": "107",
       "type": "Deluxe",
       "rate": 3200,
-      "status": "cleaning"
+      "status": "available",
+      "isUnit": false,
+      "__v": 0,
+      "createdAt": "2026-10-20T20:45:36.807Z",
+      "updatedAt": "2026-10-20T20:45:36.807Z"
     },
     {
+      "_id": "6ad7d2f0e5f105a34b9dafaf",
       "id": "RM-108",
       "property": "azurevista",
       "number": "108",
       "type": "Suite",
       "rate": 4800,
-      "status": "maintenance"
+      "status": "available",
+      "isUnit": false,
+      "__v": 0,
+      "createdAt": "2026-10-20T20:45:36.807Z",
+      "updatedAt": "2026-10-20T20:45:36.807Z"
     },
     {
+      "_id": "6ad7d2f0e5f105a34b9dafb0",
       "id": "RM-201",
       "property": "azurevista",
       "number": "201",
       "type": "Deluxe",
       "rate": 3125,
-      "status": "available"
+      "status": "available",
+      "isUnit": false,
+      "__v": 0,
+      "createdAt": "2026-10-20T20:45:36.807Z",
+      "updatedAt": "2026-10-20T20:45:36.807Z"
     },
     {
+      "_id": "6ad7d2f0e5f105a34b9dafb1",
       "id": "RM-203",
       "property": "azurevista",
       "number": "203",
       "type": "Standard",
       "rate": 1786,
-      "status": "available"
+      "status": "available",
+      "isUnit": false,
+      "__v": 0,
+      "createdAt": "2026-10-20T20:45:36.807Z",
+      "updatedAt": "2026-10-20T20:45:36.807Z"
     },
     {
+      "_id": "6ad7d2f0e5f105a34b9dafb4",
       "id": "RM-202",
       "property": "azurevista",
       "number": "202",
       "type": "Deluxe",
       "rate": 3125,
-      "status": "available"
+      "status": "available",
+      "isUnit": false,
+      "createdAt": "2026-10-20T20:45:36.836Z",
+      "updatedAt": "2026-10-20T20:45:36.836Z",
+      "__v": 0
     }
   ],
   "units": [
     {
+      "_id": "6ad7d2f0e5f105a34b9dafb2",
       "id": "UN-1",
       "property": "azuresuite",
       "number": "Azure Suite",
       "type": "2BHK Apartment",
       "rate": 6500,
-      "status": "available"
+      "status": "available",
+      "isUnit": true,
+      "__v": 0,
+      "createdAt": "2026-10-20T20:45:36.807Z",
+      "updatedAt": "2026-10-20T20:45:36.807Z"
     },
     {
+      "_id": "6ad7d2f0e5f105a34b9dafb5",
       "id": "UN-2",
       "property": "azuresuite",
       "number": "Azure Suite 2",
       "type": "2BHK Apartment",
       "rate": 6500,
-      "status": "available"
+      "status": "available",
+      "isUnit": true,
+      "createdAt": "2026-10-20T20:45:36.837Z",
+      "updatedAt": "2026-10-20T20:45:36.837Z",
+      "__v": 0
     }
   ],
   "guests": [

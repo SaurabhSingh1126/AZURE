@@ -63,31 +63,25 @@ router.get('/', async (req, res) => {
 
     // Fallback if Mongoose is offline / serverless cold-start without Atlas
     if (mongoose.connection.readyState !== 1) {
-      const dataStorePath = path.join(__dirname, '..', 'data_store.json');
-      if (fs.existsSync(dataStorePath)) {
-        try {
-          const store = JSON.parse(fs.readFileSync(dataStorePath, 'utf8'));
-          let list = store.bookings || [];
-          if (property && property !== 'all') list = list.filter(b => b.property === property);
-          if (status && status !== 'all') list = list.filter(b => b.status === status);
-          if (roomId && roomId !== 'all') list = list.filter(b => b.roomId === roomId);
-          if (source && source !== 'all') list = list.filter(b => b.source === source);
-          return res.json({
-            success: true,
-            bookings: list,
-            pagination: {
-              total: list.length,
-              page: 1,
-              limit: list.length,
-              totalPages: 1,
-              hasPrev: false,
-              hasNext: false
-            }
-          });
-        } catch (e) {
-          console.warn('[Bookings Data Store Fallback Error]:', e.message);
+      const { getStore } = require('../services/storeSync');
+      const store = getStore();
+      let list = store.bookings || [];
+      if (property && property !== 'all') list = list.filter(b => b.property === property);
+      if (status && status !== 'all') list = list.filter(b => b.status === status);
+      if (roomId && roomId !== 'all') list = list.filter(b => b.roomId === roomId);
+      if (source && source !== 'all') list = list.filter(b => b.source === source);
+      return res.json({
+        success: true,
+        bookings: list,
+        pagination: {
+          total: list.length,
+          page: 1,
+          limit: list.length,
+          totalPages: 1,
+          hasPrev: false,
+          hasNext: false
         }
-      }
+      });
     }
 
     const filter = {};
